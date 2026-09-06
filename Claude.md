@@ -229,7 +229,16 @@ forge build            # compile (via_ir enabled; needed for engine stack depth)
 forge test             # 32 tests
 forge test -vvv        # with traces
 forge fmt              # format
+
+# Deploy — see docs/DEPLOYMENT.md for the full runbook
+forge script script/DeployOrigin.s.sol     --rpc-url $SEPOLIA_RPC_URL    --account bifrost --broadcast
+ORIGIN_VAULT=0x... \
+forge script script/DeployCreditcoin.s.sol --rpc-url $CREDITCOIN_RPC_URL --account bifrost --broadcast
 ```
+
+**`evm_version` is pinned to `london`.** CC3 testnet's EVM is pre-merge and rejects
+`paris` and later with `header validation error: prevrandao not set`. London bytecode
+runs on both chains. Do not raise it.
 
 Frontend commands land here when the portal is scaffolded.
 ## 9. Open decisions and known gaps
@@ -243,9 +252,10 @@ Still open:
 1. **Sepolia is the only origin chain.** Base/Plume remain the stated business direction
    but are unverified and unbuildable today — ChainInfo cannot enumerate supported chains.
    Treat multi-chain origin as roadmap, not capability, in any writeup.
-2. **Nothing is deployed.** Needs Sepolia + CC3 testnet deploys, funded from faucets, and
-   an end-to-end run against the real precompile — the first real test of the decoder
-   against a genuine receipt.
+2. **Nothing is deployed.** Scripts are written and simulate cleanly against both live
+   networks; the broadcast needs a funded keystore (`docs/DEPLOYMENT.md`). The end-to-end
+   run is the first time the decoder meets a genuine Sepolia receipt rather than one the
+   tests construct — expect that step, not the unit tests, to find remaining bugs.
 3. **No frontend.** Section 7 is still design only.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
