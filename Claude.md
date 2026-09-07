@@ -8,7 +8,7 @@ Guidance for Claude Code when working in this repository.
 
 **Contracts implemented and tested; no frontend yet.** `contracts/` is a Foundry
 project with the origin vault, the Creditcoin pool engine, a receipt decoder, and
-32 passing tests. Not yet deployed to any network.
+35 passing tests. Not yet deployed to any network.
 
 Sections 4-6 now describe shipped code. Section 7 (the portal) is still design only.
 ## 2. What Bifrost is
@@ -129,94 +129,57 @@ precompile's own `"Transaction data cannot be empty"` revert, proving the select
 dispatched; a transposed struct order returns `"Unknown selector"` instead. Re-run that
 differential check if the interface ever appears to break.
 
-### `encodedTransaction` is the origin-chain receipt RLP
+### `encodedTransaction` is an ABI envelope, not receipt RLP
+
+This is the single easiest thing to get wrong, and getting it wrong fails only against
+real proofs — never against your own fixtures. The payload is:
 
 ```
-[status, cumulativeGasUsed, logsBloom, logs]     logs: [address, [topic...], data]
+abi.encode(uint8 txType, bytes[] chunks)
 ```
 
-EIP-2718 typed receipts prepend a single type byte (<= 0x7f). `logsBloom` is 256 bytes, so
-its prefix is `0xb9 0x01 0x00` — a long string with a two-byte length. Any RLP reader that
-computes long-form length as `prefix - 0xb8` instead of `- 0xb7` misreads it. See
-`src/lib/ReceiptDecoder.sol`.
+Chunk count varies by transaction type (3 for legacy/access-list/1559, 4 for blob and
+authorization types), and **the last chunk is always the receipt**:
+
+```
+abi.encode(uint8 status, uint64 gasUsed, tuple(address, bytes32[], bytes)[] logs, bytes logsBloom)
+```
+
+So logs are ABI-encoded, not RLP-encoded. Decoding is delegated to the Solidity ABI
+decoder in `src/lib/AttestedTx.sol`, which bounds-checks for free. Take the last chunk
+rather than a fixed index, and the decoder works for every transaction type.
+
+Verified against usc-sdk v0.18.0 `encoding/abi/v1.ts` (`abiEncode`).
+
+`status` must be checked: a **reverted** source transaction still produces a perfectly
+attestable receipt, and would otherwise fund a credit line off a failed lock.
 
 ### Off-chain
 
 - SDK: `@gluwa/usc-sdk` (v0.18.0) — `proofProvider`, `waitUntilHeightAttested`, `getProof`
 - Prover API: `https://proof-gen-api.cc3-testnet.creditcoin.network`
 - Creditcoin CC3 testnet RPC: `https://rpc.cc3-testnet.creditcoin.network` (chain id 102031)
-- **Sepolia `chainKey = 1`.** This is the only source chain confirmed working.
+- **Sepolia `chainKey = 1`.** Ethereum mainnet is `chainKey = 3`; nothing else is supported.
 - **Attestation latency is 8-20 minutes.** Design every flow and demo around this; it is
   not tunable. Allow ~30 min before timing out.
 
-### ChainInfo precompile — `0x…0FD3` does not respond as documented
+### ChainInfo precompile — `0x…0FD3`, snake_case names
 
-`getSupportedChains()` and `getAttestedHeight(uint64)` both return `Unknown selector` on
-CC3. The precompile exists and dispatches, so these signatures are wrong or unavailable.
-There is therefore **no on-chain way to enumerate attested source chains** — which is why
-Sepolia is hardcoded rather than discovered.
-## 6. Layer 3 — Creditcoin Credit Pool Engine
+Live and working. **Its functions are snake_case**, not camelCase — querying
+`getSupportedChains()` returns `Unknown selector`, which reads like the precompile is
+missing when it is simply named differently. See `src/interfaces/IChainInfo.sol`.
 
-`src/CreditcoinPoolEngine.sol` — issues stablecoin credit against a portfolio that
-Attestcoin has proven locked on Sepolia.
+`get_supported_chains()` on CC3 returns exactly two attested source chains:
 
-**The security property that makes this protocol mean anything:** collateral value is never
-read from calldata. `attestAndOpenCredit` calls the BlockProver precompile, then decodes
-the `PortfolioLocked` log *out of the receipt the precompile just verified*, and takes
-owner, value, and valuation round from there. The `LockClaim` argument only locates and
-cross-checks that log — every field must equal what the proven receipt says or the call
-reverts with `ClaimDoesNotMatchProof`. A borrower cannot mint credit beyond what an
-independent valuer published and the origin chain actually escrowed.
+| chainKey | chainId | name |
+|---|---|---|
+| 3 | 1 | Ethereum |
+| 1 | 11155111 | Sepolia ethereum |
 
-Order of operations:
-
-1. `chainKey` matches the configured source chain; caller is the claimed borrower
-2. Receipt not already consumed (`usedReceipt[keccak256(encodedTx)]`), portfolio has no open line
-3. `blockProver.verifyAndEmit(...)` must return true
-4. `ReceiptDecoder.findLog` locates the log **emitted by `originVault`** with topic0
-   `PortfolioLocked(address,uint256,uint256,uint64)` — a log from any other contract is
-   not found, so an attacker cannot emit a lookalike event from their own contract
-5. `topics[1]` (owner) and `topics[2]` (portfolioId) and the decoded `(dollarValue,
-   valuationRound)` are all bound against the claim
-6. `creditLimit = provenValue * ltvBps / 10_000`, with `MAX_LTV_BPS = 8000` as a hard
-   ceiling the admin cannot raise past
-
-Also implements `previewIngest` — a staticcall dry run over the precompile's read-only
-`verify`, returning a reason string so the UI can explain a bad proof before the user
-spends gas.
-
-Beyond attestation: `draw`, `repay` (closes the line at zero), `setLtvBps`, `transferAdmin`.
-## 7. Product: the Bifrost Operator Portal
-
-Not a retail dApp. A **B2B institutional portal** — a sleek dual-pane enterprise dashboard.
-
-**Users**
-- **Borrower (Fintech / RWA issuer).** A credit fund manager holding, say, $1M in verified
-  local business loans on a compliance ledger, who needs liquid stablecoins to originate more.
-- **Lender (Liquidity Provider).** HNW investors or DAOs on Creditcoin seeking safe
-  real-world yield.
-
-**Interface**
-- **Left pane — source chain status.** Compliance network connection (Base, Plume), total
-  tokenized portfolio value, "Lock Asset" control panel.
-- **Center — the Attestcoin status rail.** The signature element. A cryptographic progress
-  bar: `Event Detected ➔ Merkle Proof Generated ➔ Validator Signatures Confirmed ➔ Proven`.
-  This is what makes the backend legible to a judge or a risk officer.
-- **Right pane — Creditcoin execution layer.** Active credit line balance, available
-  capital to withdraw, interest rate, loan health factor.
-
-**User journey**
-1. **Connect dual wallets.** Institutional wallet (Fireblocks, MetaMask Institutional);
-   the app verifies identity on both the compliance network and Creditcoin L1.
-2. **Select collateral.** From inventory, e.g. *"Portfolio #1042: Emerging Market
-   Microfinance Bundle — $250,000"*. Click **Request Credit Line**.
-3. **Cross-chain lock.** User signs; `lockPortfolio` fires on the origin chain. UI:
-   *"Securing asset on compliance chain…"*
-4. **Attestation (no user interaction).** On block settlement, Attestcoin intercepts the
-   event, compiles the proof, validators sign. The status rail animates through its stages.
-5. **Claim on Creditcoin.** Status hits *Proven*; **Execute Credit Line on Creditcoin**
-   activates. User signs, `attestAndCredit` runs, $200,000 USDC (80% LTV) lands in their
-   Creditcoin account.
+**Base and Plume are not supported.** This is measured, not inferred, and it is why the
+protocol targets Sepolia. Useful calls: `is_height_attested(chainKey, height)` and
+`get_latest_attestation_height_and_hash(chainKey)` — the latter is how to show real
+attestation lag in the UI rather than a fake progress bar.
 
 ---
 
@@ -226,7 +189,7 @@ Not a retail dApp. A **B2B institutional portal** — a sleek dual-pane enterpri
 cd contracts
 
 forge build            # compile (via_ir enabled; needed for engine stack depth)
-forge test             # 32 tests
+forge test             # 35 tests
 forge test -vvv        # with traces
 forge fmt              # format
 
@@ -249,9 +212,10 @@ originator from valuer.
 
 Still open:
 
-1. **Sepolia is the only origin chain.** Base/Plume remain the stated business direction
-   but are unverified and unbuildable today — ChainInfo cannot enumerate supported chains.
-   Treat multi-chain origin as roadmap, not capability, in any writeup.
+1. **Sepolia is the only usable testnet origin chain**, confirmed by
+   `get_supported_chains()`: only Ethereum mainnet (key 3) and Sepolia (key 1) are
+   attested. Base/Plume are not supported at all — treat multi-chain origin as a request
+   to Gluwa, not a roadmap item you can build.
 2. **Nothing is deployed.** Scripts are written and simulate cleanly against both live
    networks; the broadcast needs a funded keystore (`docs/DEPLOYMENT.md`). The end-to-end
    run is the first time the decoder meets a genuine Sepolia receipt rather than one the

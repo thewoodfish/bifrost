@@ -71,8 +71,8 @@ Record `CreditcoinPoolEngine` and `TestUSDC` into `docs/addresses.md`.
 
 ## 3. End-to-end smoke test
 
-This is the first time the receipt decoder meets a *real* Sepolia receipt. Unit tests
-build their own RLP, so this step is what actually validates the decoder.
+This is the first time the decoder meets a *real* attested payload. Unit tests
+build their own SDK-format payloads, so this step is what actually validates the decoder.
 
 ```bash
 # Sepolia: register, value, lock

@@ -5,7 +5,8 @@ import {Test} from "forge-std/Test.sol";
 import {CreditcoinPoolEngine} from "../src/CreditcoinPoolEngine.sol";
 import {IAttestcoinBlockProver} from "../src/interfaces/IAttestcoinBlockProver.sol";
 import {MockBlockProver, MockERC20} from "./mocks/Mocks.sol";
-import {ReceiptBuilder} from "./helpers/RLPWriter.sol";
+import {AttestedTxBuilder} from "./helpers/AttestedTxBuilder.sol";
+import {AttestedTx} from "../src/lib/AttestedTx.sol";
 
 contract CreditcoinPoolEngineTest is Test {
     CreditcoinPoolEngine engine;
@@ -40,12 +41,26 @@ contract CreditcoinPoolEngineTest is Test {
         pure
         returns (bytes memory)
     {
+        return _lockReceiptTyped(emitter, owner, portfolioId, value, round, 2, 1, 3);
+    }
+
+    function _lockReceiptTyped(
+        address emitter,
+        address owner,
+        uint256 portfolioId,
+        uint256 value,
+        uint64 round,
+        uint8 txType,
+        uint8 status,
+        uint256 chunkCount
+    ) internal pure returns (bytes memory) {
         bytes32[] memory topics = new bytes32[](3);
         topics[0] = LOCK_TOPIC;
         topics[1] = bytes32(uint256(uint160(owner)));
         topics[2] = bytes32(portfolioId);
-        bytes memory data = abi.encode(value, round);
-        return ReceiptBuilder.receiptRLP(2, 1, 21000, ReceiptBuilder.log(emitter, topics, data));
+        AttestedTx.Log[] memory logs =
+            AttestedTxBuilder.singleLog(emitter, topics, abi.encode(value, round));
+        return AttestedTxBuilder.encode(txType, status, 120000, logs, chunkCount);
     }
 
     function _claim(uint256 value, address borrower) internal pure returns (CreditcoinPoolEngine.LockClaim memory) {
@@ -74,16 +89,34 @@ contract CreditcoinPoolEngineTest is Test {
         assertTrue(line.open);
     }
 
-    function test_LegacyReceiptEnvelopeAlsoDecodes() public {
-        bytes32[] memory topics = new bytes32[](3);
-        topics[0] = LOCK_TOPIC;
-        topics[1] = bytes32(uint256(uint160(BORROWER)));
-        topics[2] = bytes32(PORTFOLIO);
-        bytes memory receipt =
-            ReceiptBuilder.receiptRLP(0, 1, 21000, ReceiptBuilder.log(ORIGIN_VAULT, topics, abi.encode(VALUE, uint64(1))));
+    /// @dev Blob/authorization transactions carry four chunks; the receipt is still last.
+    function test_FourChunkPayloadDecodes() public {
+        bytes memory receipt = _lockReceiptTyped(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1, 3, 1, 4);
 
         vm.prank(BORROWER);
         assertEq(engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp), 200_000e6);
+    }
+
+    function test_LegacyTxTypeDecodes() public {
+        bytes memory receipt = _lockReceiptTyped(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1, 0, 1, 3);
+
+        vm.prank(BORROWER);
+        assertEq(engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp), 200_000e6);
+    }
+
+    /// @dev A reverted source tx still yields an attestable receipt; it must not fund credit.
+    function test_RevertWhen_SourceTxReverted() public {
+        bytes memory receipt = _lockReceiptTyped(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1, 2, 0, 3);
+
+        vm.prank(BORROWER);
+        vm.expectRevert(CreditcoinPoolEngine.SourceTxFailed.selector);
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp);
+    }
+
+    function test_RevertWhen_PayloadIsGarbage() public {
+        vm.prank(BORROWER);
+        vm.expectRevert();
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), hex"deadbeef", mp, cp);
     }
 
     // -- the attack this protocol exists to stop -------------------------------

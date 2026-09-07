@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IAttestcoinBlockProver, Attestcoin} from "./interfaces/IAttestcoinBlockProver.sol";
-import {ReceiptDecoder} from "./lib/ReceiptDecoder.sol";
+import {AttestedTx} from "./lib/AttestedTx.sol";
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
@@ -25,7 +25,7 @@ interface IERC20 {
  *      published and the origin chain actually escrowed.
  */
 contract CreditcoinPoolEngine {
-    using ReceiptDecoder for bytes;
+    using AttestedTx for bytes;
 
     /// @dev keccak256("PortfolioLocked(address,uint256,uint256,uint64)")
     bytes32 public constant PORTFOLIO_LOCKED_TOPIC =
@@ -93,6 +93,7 @@ contract CreditcoinPoolEngine {
     error ProofRejected();
     error LockLogNotFound();
     error MalformedLockLog();
+    error SourceTxFailed();
     error ClaimDoesNotMatchProof();
     error LineAlreadyOpen();
     error NoOpenLine();
@@ -197,8 +198,9 @@ contract CreditcoinPoolEngine {
             return (false, "precompile reverted");
         }
 
-        (bool found, bytes32[] memory topics, bytes memory data) =
-            ReceiptDecoder.findLog(encodedTx, originVault, PORTFOLIO_LOCKED_TOPIC);
+        (bool found, bytes32[] memory topics, bytes memory data, uint8 status) =
+            AttestedTx.findLog(encodedTx, originVault, PORTFOLIO_LOCKED_TOPIC);
+        if (status != 1) return (false, "source tx reverted");
         if (!found) return (false, "lock log not found");
         if (topics.length < 3 || data.length < 64) return (false, "malformed lock log");
         if (uint256(topics[2]) != claim.portfolioId) return (false, "portfolio mismatch");
@@ -216,9 +218,11 @@ contract CreditcoinPoolEngine {
         view
         returns (uint256 value, address owner, uint64 round)
     {
-        (bool found, bytes32[] memory topics, bytes memory data) =
-            ReceiptDecoder.findLog(encodedTx, originVault, PORTFOLIO_LOCKED_TOPIC);
+        (bool found, bytes32[] memory topics, bytes memory data, uint8 status) =
+            AttestedTx.findLog(encodedTx, originVault, PORTFOLIO_LOCKED_TOPIC);
 
+        // A reverted source transaction still produces an attestable receipt.
+        if (status != 1) revert SourceTxFailed();
         if (!found) revert LockLogNotFound();
         // topics = [sig, owner, portfolioId]; data = abi.encode(dollarValue, valuationRound)
         if (topics.length < 3 || data.length < 64) revert MalformedLockLog();
