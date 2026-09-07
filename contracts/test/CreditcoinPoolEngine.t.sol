@@ -58,8 +58,7 @@ contract CreditcoinPoolEngineTest is Test {
         topics[0] = LOCK_TOPIC;
         topics[1] = bytes32(uint256(uint160(owner)));
         topics[2] = bytes32(portfolioId);
-        AttestedTx.Log[] memory logs =
-            AttestedTxBuilder.singleLog(emitter, topics, abi.encode(value, round));
+        AttestedTx.Log[] memory logs = AttestedTxBuilder.singleLog(emitter, topics, abi.encode(value, round));
         return AttestedTxBuilder.encode(txType, status, 120000, logs, chunkCount);
     }
 

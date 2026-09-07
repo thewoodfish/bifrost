@@ -28,10 +28,7 @@ interface IChainInfo {
     function get_chain_by_key(uint64 chainKey) external view returns (ChainInfo memory);
 
     /// @return height, hash, isAttestation, exists
-    function get_latest_attestation_height_and_hash(uint64 chainKey)
-        external
-        view
-        returns (uint64, bytes32, bool, bool);
+    function get_latest_attestation_height_and_hash(uint64 chainKey) external view returns (uint64, bytes32, bool, bool);
 
     function is_height_attested(uint64 chainKey, uint64 height) external view returns (bool);
     function get_attestation_genesis_height(uint64 chainKey) external view returns (uint64);

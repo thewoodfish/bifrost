@@ -28,8 +28,7 @@ contract CreditcoinPoolEngine {
     using AttestedTx for bytes;
 
     /// @dev keccak256("PortfolioLocked(address,uint256,uint256,uint64)")
-    bytes32 public constant PORTFOLIO_LOCKED_TOPIC =
-        keccak256("PortfolioLocked(address,uint256,uint256,uint64)");
+    bytes32 public constant PORTFOLIO_LOCKED_TOPIC = keccak256("PortfolioLocked(address,uint256,uint256,uint64)");
 
     uint256 public constant BPS = 10_000;
     /// @dev Hard ceiling on LTV; the over-collateralization buffer is not admin-removable.
@@ -110,9 +109,7 @@ contract CreditcoinPoolEngine {
 
     constructor(address _blockProver, address _stablecoin, address _originVault, uint64 _chainKey, address _admin) {
         if (_stablecoin == address(0) || _originVault == address(0) || _admin == address(0)) revert ZeroAddress();
-        blockProver = IAttestcoinBlockProver(
-            _blockProver == address(0) ? Attestcoin.BLOCK_PROVER : _blockProver
-        );
+        blockProver = IAttestcoinBlockProver(_blockProver == address(0) ? Attestcoin.BLOCK_PROVER : _blockProver);
         stablecoin = IERC20(_stablecoin);
         originVault = _originVault;
         expectedChainKey = _chainKey;
@@ -151,10 +148,9 @@ contract CreditcoinPoolEngine {
         (uint256 provenValue, address provenOwner, uint64 provenRound) = _decodeLock(encodedTx, claim.portfolioId);
 
         // 3. Bind the claim to the proof.
-        if (
-            provenOwner != claim.borrower || provenValue != claim.dollarValue
-                || provenRound != claim.valuationRound
-        ) revert ClaimDoesNotMatchProof();
+        if (provenOwner != claim.borrower || provenValue != claim.dollarValue || provenRound != claim.valuationRound) {
+            revert ClaimDoesNotMatchProof();
+        }
         if (provenValue == 0) revert ZeroValue();
 
         creditLimit = (provenValue * ltvBps) / BPS;
@@ -170,9 +166,7 @@ contract CreditcoinPoolEngine {
         });
         portfolioHasOpenLine[claim.portfolioId] = true;
 
-        emit CreditLineOpened(
-            claim.borrower, claim.portfolioId, provenValue, creditLimit, provenRound, receiptId
-        );
+        emit CreditLineOpened(claim.borrower, claim.portfolioId, provenValue, creditLimit, provenRound, receiptId);
     }
 
     /**

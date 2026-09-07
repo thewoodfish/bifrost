@@ -34,11 +34,7 @@ contract MockBlockProver is IAttestcoinBlockProver {
         return result;
     }
 
-    function calculateTxIndex(bytes32, MerkleProof calldata, ContinuityProof calldata)
-        external
-        pure
-        returns (uint256)
-    {
+    function calculateTxIndex(bytes32, MerkleProof calldata, ContinuityProof calldata) external pure returns (uint256) {
         return 0;
     }
 }

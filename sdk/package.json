@@ -1,0 +1,21 @@
+{
+  "name": "@bifrost/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Attestcoin proof pipeline connecting the Sepolia vault to the Creditcoin pool engine",
+  "scripts": {
+    "bifrost": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gluwa/usc-sdk": "^0.18.0",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.2"
+  }
+}

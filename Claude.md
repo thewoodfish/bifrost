@@ -189,7 +189,7 @@ attestation lag in the UI rather than a fake progress bar.
 cd contracts
 
 forge build            # compile (via_ir enabled; needed for engine stack depth)
-forge test             # 35 tests
+forge test             # 40 tests
 forge test -vvv        # with traces
 forge fmt              # format
 
@@ -202,6 +202,16 @@ forge script script/DeployCreditcoin.s.sol --rpc-url $CREDITCOIN_RPC_URL --accou
 **`evm_version` is pinned to `london`.** CC3 testnet's EVM is pre-merge and rejects
 `paris` and later with `header validation error: prevrandao not set`. London bytecode
 runs on both chains. Do not raise it.
+
+### SDK — the off-chain proof pipeline
+
+```bash
+cd sdk && npm install
+npm run bifrost -- status              # supported chains + live attestation lag
+npm run bifrost -- lock 1042 250000    # register, value, lock on Sepolia
+npm run bifrost -- open <txHash>       # wait for attestation, prove, open credit
+npm run bifrost -- line 1042
+```
 
 Frontend commands land here when the portal is scaffolded.
 ## 9. Open decisions and known gaps
