@@ -1,6 +1,6 @@
 import { Contract, formatUnits, type Signer } from "ethers";
 import { config } from "./config.js";
-import { creditcoin, sepolia, signerFor } from "./chain.js";
+import { creditcoin, hasValuerSigner, sepolia, signerFor } from "./chain.js";
 import { POOL_ENGINE_ABI, RWA_ORIGIN_VAULT_ABI } from "./abis.js";
 import { attestAndBuild, type AttestcoinProof, type Stage } from "./attest.js";
 
@@ -23,34 +23,49 @@ async function engine(signer?: Signer): Promise<Contract> {
   return new Contract(config.poolEngine(), POOL_ENGINE_ABI, signer ?? provider);
 }
 
-/** Register, value and lock a portfolio on Sepolia. Returns the lock's details. */
+/**
+ * Register, value and lock a portfolio on Sepolia.
+ *
+ * Three transactions across two keys: the borrower registers and locks, while an
+ * independent valuer publishes the valuation. Splitting the signers here is what makes
+ * the resulting attestation worth anything — otherwise it proves a number the borrower
+ * chose for itself.
+ */
 export async function lockPortfolio(
   portfolioId: bigint,
   dollarValue: bigint,
   log: (s: string) => void,
 ): Promise<LockDetails> {
-  const signer = await signerFor(sepolia());
-  const v = await vault(signer);
-  const me = await signer.getAddress();
+  const provider = sepolia();
+  const borrower = await signerFor(provider, "borrower");
+  const v = await vault(borrower);
+  const me = await borrower.getAddress();
 
   const existing = await v.getPortfolio(portfolioId);
   if (!existing.exists) {
-    log(`registering portfolio ${portfolioId}...`);
+    if (!(await v.isOriginator(me))) {
+      throw new Error(`${me} is not an approved originator. Grant it with setOriginator from the admin key.`);
+    }
+    log(`registering portfolio ${portfolioId} as ${me}...`);
     await (await v.registerPortfolio(portfolioId)).wait();
   } else {
     log(`portfolio ${portfolioId} already registered to ${existing.owner}`);
   }
 
   if (existing.dollarValue !== dollarValue) {
-    if (!(await v.isValuer(me))) {
-      throw new Error(
-        `${me} is not an approved valuer. Valuation must come from an independent ` +
-          `valuer — that separation is the point. Grant it with setValuer, or run this ` +
-          `step from the valuer's key.`,
-      );
+    const valuerSigner = await signerFor(provider, "valuer");
+    const valuerAddr = await valuerSigner.getAddress();
+
+    if (!(await v.isValuer(valuerAddr))) {
+      const hint = hasValuerSigner()
+        ? `Approve it with setValuer from the admin key.`
+        : `No separate valuer key is configured, so the borrower's key was used. ` +
+          `Set VALUER_KEYSTORE_ACCOUNT + VALUER_KEYSTORE_PASSWORD (or VALUER_PRIVATE_KEY).`;
+      throw new Error(`${valuerAddr} is not an approved valuer. ${hint}`);
     }
-    log(`publishing valuation ${dollarValue}...`);
-    await (await v.setValuation(portfolioId, dollarValue)).wait();
+
+    log(`publishing valuation ${dollarValue} as valuer ${valuerAddr}...`);
+    await (await vault(valuerSigner)).setValuation(portfolioId, dollarValue).then((t: any) => t.wait());
   }
 
   log(`locking portfolio ${portfolioId}...`);

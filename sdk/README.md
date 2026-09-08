@@ -21,9 +21,19 @@ npm run bifrost -- status
 
 ## Config
 
-Reads `../.env` (see `.env.example`). Needs `ORIGIN_VAULT`, `POOL_ENGINE`, and a signer —
-`KEYSTORE_ACCOUNT` + `KEYSTORE_PASSWORD` against a Foundry keystore, or `PRIVATE_KEY`
-as a CI fallback.
+Reads `../.env` (see `.env.example`). Needs `ORIGIN_VAULT`, `POOL_ENGINE`, and signers.
+
+Two keys, because the protocol depends on them being different:
+
+| role | env | signs |
+|---|---|---|
+| borrower | `KEYSTORE_ACCOUNT` + `KEYSTORE_PASSWORD` (or `PRIVATE_KEY`) | `registerPortfolio`, `lockPortfolio`, and everything on Creditcoin |
+| valuer | `VALUER_KEYSTORE_ACCOUNT` + `VALUER_KEYSTORE_PASSWORD` (or `VALUER_PRIVATE_KEY`) | `setValuation` on Sepolia only |
+
+The valuer falls back to the borrower key when unconfigured — fine locally, but against
+a deployment with real role separation it surfaces as a `NotValuer` revert rather than
+silently letting the borrower price its own collateral. The valuer needs Sepolia gas
+only; it never touches Creditcoin.
 
 ## Notes
 
