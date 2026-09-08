@@ -38,6 +38,17 @@ contract DeployOrigin is Script {
         console.log("  admin:       ", admin);
         console.log("  originator:  ", originator);
         console.log("  valuer:      ", valuer);
+
+        // The originator/valuer split is the protocol's credibility basis: a borrower
+        // must not be able to price the collateral it borrows against. Collapsing the
+        // roles still deploys, but the deployment no longer demonstrates that property.
+        if (originator == valuer) {
+            console.log("");
+            console.log("WARNING: originator and valuer are the same address.");
+            console.log("         The borrower can price its own collateral.");
+            console.log("         Set VALUER to a separate address for a meaningful deployment.");
+        }
+
         console.log("");
         console.log("Set ORIGIN_VAULT to this address before deploying the Creditcoin side.");
     }
