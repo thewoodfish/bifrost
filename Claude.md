@@ -6,9 +6,10 @@ Guidance for Claude Code when working in this repository.
 
 ## 1. Project status
 
-**Contracts implemented and tested; no frontend yet.** `contracts/` is a Foundry
-project with the origin vault, the Creditcoin pool engine, a receipt decoder, and
-35 passing tests. Not yet deployed to any network.
+**Contracts deployed and validated end-to-end; no frontend yet.** `contracts/` is a
+Foundry project with the origin vault, the Creditcoin pool engine, a receipt decoder, and
+40 passing tests. Live on Sepolia and CC3 testnet as of 2026-09-08 — addresses in
+`docs/addresses.md`.
 
 Sections 4-6 now describe shipped code. Section 7 (the portal) is still design only.
 ## 2. What Bifrost is
@@ -226,10 +227,11 @@ Still open:
    `get_supported_chains()`: only Ethereum mainnet (key 3) and Sepolia (key 1) are
    attested. Base/Plume are not supported at all — treat multi-chain origin as a request
    to Gluwa, not a roadmap item you can build.
-2. **Nothing is deployed.** Scripts are written and simulate cleanly against both live
-   networks; the broadcast needs a funded keystore (`docs/DEPLOYMENT.md`). The end-to-end
-   run is the first time the decoder meets a genuine Sepolia receipt rather than one the
-   tests construct — expect that step, not the unit tests, to find remaining bugs.
+2. **Deployed, and the decoder survived a real receipt.** Both chains are live
+   (`docs/addresses.md`). Portfolio 1042 locked at $250,000 on Sepolia, attested at height
+   11664110, opened a $200,000 line on CC3 and drew $50,000; a replayed receipt was
+   rejected. The decoder needed no changes for a genuine Sepolia receipt.
+   Neither contract is explorer-verified — no `ETHERSCAN_API_KEY` was set at deploy time.
 3. **No frontend.** Section 7 is still design only.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
