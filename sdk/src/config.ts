@@ -27,6 +27,14 @@ export const config = {
   /** Attestation lands in roughly 8-20 min; allow 30 before giving up. */
   attestTimeoutMs: Number(process.env.ATTEST_TIMEOUT_MS ?? 30 * 60_000),
   attestPollMs: Number(process.env.ATTEST_POLL_MS ?? 15_000),
+
+  /**
+   * The prover can lag the attested height by a few polls: the height reads as attested
+   * on-chain while the API still 422s. Observed once against a real lock. Bounded retry,
+   * because the alternative is throwing away the 8-20 min wait that just completed.
+   */
+  proofRetryTimeoutMs: Number(process.env.PROOF_RETRY_TIMEOUT_MS ?? 3 * 60_000),
+  proofRetryPollMs: Number(process.env.PROOF_RETRY_POLL_MS ?? 10_000),
 } as const;
 
 export const CHAIN_INFO_PRECOMPILE = "0x0000000000000000000000000000000000000fD3";

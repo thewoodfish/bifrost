@@ -15,6 +15,7 @@ export type Stage =
   | { phase: "waiting_attestation"; height: number; attested: number; behind: number }
   | { phase: "attested"; height: number }
   | { phase: "building_proof"; height: number }
+  | { phase: "proof_retry"; attempt: number; waited: number; reason: string }
   | { phase: "proof_ready"; height: number };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -49,18 +50,53 @@ export async function waitUntilAttested(height: number, onStage?: (s: Stage) => 
 }
 
 /**
+ * True for prover errors that mean "not yet", as opposed to "never".
+ *
+ * The one that matters is 422 immediately after attestation lands: `is_height_attested`
+ * is already true on-chain while the prover has yet to materialise the proof. 404 behaves
+ * the same way for a very fresh transaction, and 429/5xx/network errors are transient by
+ * definition. Anything else — a malformed hash, a wrong chainKey — fails fast, because
+ * retrying it just burns the window.
+ */
+function isTransientProofError(message: string): boolean {
+  return /\b(422|404|429|5\d\d)\b/.test(message) || /timeout|ECONN|ENOTFOUND|EAI_AGAIN|socket hang up|network/i.test(message);
+}
+
+/**
  * Fetch the Merkle + continuity proof for a source transaction.
  *
  * `txBytes` is the attested payload: abi.encode(uint8 txType, bytes[] chunks), with the
  * receipt as the final chunk. It is passed straight through to the engine, which decodes
  * the lock event out of it — see src/lib/AttestedTx.sol.
+ *
+ * Retries transient prover failures. Reaching this function means the 8-20 min
+ * attestation wait already completed, so surrendering to a 422 that clears in seconds
+ * costs the caller the whole wait over again.
  */
 export async function buildProof(txHash: string, onStage?: (s: Stage) => void): Promise<AttestcoinProof> {
   const builder = new proofProvider.service.ProofBuilder(config.chainKey, config.proverUrl);
 
-  const result = await builder.getProof(txHash);
-  if (!result.success || !result.data) {
-    throw new Error(`Proof generation failed for ${txHash}: ${result.error ?? "unknown error"}`);
+  const started = Date.now();
+  const deadline = started + config.proofRetryTimeoutMs;
+  let attempt = 0;
+  let result = await builder.getProof(txHash);
+
+  while (!result.success || !result.data) {
+    const reason = String(result.error ?? "unknown error");
+    if (!isTransientProofError(reason)) {
+      throw new Error(`Proof generation failed for ${txHash}: ${reason}`);
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Proof generation failed for ${txHash} after ${Math.round((Date.now() - started) / 1000)}s ` +
+          `of retries: ${reason}. The height is attested, so the proof should appear — ` +
+          `re-run \`open\` rather than re-locking.`,
+      );
+    }
+    attempt += 1;
+    onStage?.({ phase: "proof_retry", attempt, waited: Math.round((Date.now() - started) / 1000), reason });
+    await sleep(config.proofRetryPollMs);
+    result = await builder.getProof(txHash);
   }
 
   const d = result.data;

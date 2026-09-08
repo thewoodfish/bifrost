@@ -23,6 +23,11 @@ function onStage(s: Stage) {
     case "building_proof":
       console.log("  building proof...");
       break;
+    case "proof_retry":
+      console.log(
+        `  prover not ready yet (attempt ${s.attempt}, ${s.waited}s): ${s.reason.split("\n")[0]}`,
+      );
+      break;
     case "proof_ready":
       console.log("  proof ready");
       break;

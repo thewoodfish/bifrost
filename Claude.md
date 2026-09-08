@@ -231,7 +231,7 @@ Still open:
    (`docs/addresses.md`). Portfolio 1042 locked at $250,000 on Sepolia, attested at height
    11664110, opened a $200,000 line on CC3 and drew $50,000; a replayed receipt was
    rejected. The decoder needed no changes for a genuine Sepolia receipt.
-   Neither contract is explorer-verified — no `ETHERSCAN_API_KEY` was set at deploy time.
+   The vault is verified on Sepolia Etherscan; CC3 offers no explorer verification.
 3. **No frontend.** Section 7 is still design only.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.

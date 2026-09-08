@@ -12,7 +12,7 @@ before assuming a config value is wrong.
 
 | Contract | Address | Verified |
 |---|---|---|
-| RWAOriginVault | `0xD4420269d42D6d0243bCb1Ac923D1B5563154138` | not yet — no `ETHERSCAN_API_KEY` at deploy time |
+| RWAOriginVault | `0xD4420269d42D6d0243bCb1Ac923D1B5563154138` | [yes](https://sepolia.etherscan.io/address/0xd4420269d42d6d0243bcb1ac923d1b5563154138#code) |
 
 Roles as deployed: admin and originator `0x3656ABd007AED9B9A572a63c58447044D69f8DAf`,
 valuer `0x8B88c241c819c3cd1064DcFe018324195a6a3a6B`. Confirmed on-chain that
@@ -22,7 +22,7 @@ valuer `0x8B88c241c819c3cd1064DcFe018324195a6a3a6B`. Confirmed on-chain that
 
 | Contract | Address | Verified |
 |---|---|---|
-| CreditcoinPoolEngine | `0xD4420269d42D6d0243bCb1Ac923D1B5563154138` | n/a (no explorer verification configured) |
+| CreditcoinPoolEngine | `0xD4420269d42D6d0243bCb1Ac923D1B5563154138` | n/a — CC3 has no explorer verification |
 | TestUSDC | `0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B` | n/a |
 | BlockProver (Attestcoin precompile) | `0x0000000000000000000000000000000000000FD2` | n/a |
 
