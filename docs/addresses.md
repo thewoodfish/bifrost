@@ -30,6 +30,21 @@ Engine config, read back on-chain after deploy:
 `originVault` = the Sepolia vault above, `expectedChainKey` = 1, `ltvBps` = 8000,
 `blockProver` = `0x…0FD2`, pool funded with 10,000,000 TestUSDC (1e13 base units).
 
+## Demo state
+
+Portfolios seeded on the live deployment, so a demo never has to wait out an attestation
+cold. Attestation is 8-20 min, so a portfolio in the "ready to open" state cannot be
+created on stage — it has to be locked beforehand.
+
+| Portfolio | Value | State | Lock tx |
+|---|---|---|---|
+| 1042 | $250,000 | closed — opened, drawn, fully repaid | `0x4d5d6add…85c2c1` (block 11664110) |
+| 1043 | $500,000 | locked, awaiting open — the live demo step | `0xf338ebeb…926861` (block 11675121) |
+
+Locked 1043 on 2026-09-10. Leave it unopened: `attestAndOpenCredit` consumes the receipt
+permanently, so opening it burns the demo. To reset, lock a fresh id:
+`npm run bifrost -- lock <newId> <usd>`.
+
 ## Retired
 
 Keep superseded engine addresses here so borrowers can still repay open lines.

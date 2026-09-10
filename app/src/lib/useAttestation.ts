@@ -98,3 +98,94 @@ export async function isHeightAttested(height: number): Promise<boolean> {
     args: [BigInt(config.chainKey), BigInt(height)],
   })) as boolean;
 }
+
+/**
+ * Authoritative per-height attestation check, polled until it turns true.
+ *
+ * `get_latest_attestation_height_and_hash` supplies a number to measure progress
+ * against, but `is_height_attested` is the answer the protocol stands behind — it is
+ * what the SDK's wait loop polls, and what the BlockProver's own verification agrees
+ * with. Gating the irreversible step on the derived comparison instead would leave the
+ * portal and the SDK answering the same question two different ways.
+ *
+ * Pass `undefined` to stand down once the answer can no longer change anything.
+ */
+export function useHeightAttested(height: number | undefined): boolean | null {
+  const [attested, setAttested] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (height === undefined) {
+      setAttested(null);
+      return;
+    }
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function poll() {
+      try {
+        const ok = await isHeightAttested(height!);
+        if (!alive) return;
+        setAttested(ok);
+        // Attestation never reverses, so once true there is nothing left to watch.
+        if (ok) return;
+      } catch {
+        // A failed read is not a "no" — keep the previous answer and try again.
+        if (!alive) return;
+      }
+      timer = setTimeout(poll, POLL_MS);
+    }
+
+    setAttested(null);
+    void poll();
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [height]);
+
+  return attested;
+}
+
+export interface SupportedChain {
+  chainKey: number;
+  chainId: number;
+  chainName: string;
+}
+
+/**
+ * The source chains Attestcoin will actually attest, read from the ChainInfo precompile.
+ *
+ * Worth showing rather than asserting: this call is the reason the protocol targets
+ * Sepolia. Base and Plume — the chains the pitch would rather name — are simply absent
+ * from the list, and that is measured on every page load, not taken on trust.
+ */
+export function useSupportedChains(): { chains: SupportedChain[]; error: string | null } {
+  const [chains, setChains] = useState<SupportedChain[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    creditcoinClient
+      .readContract({
+        address: CHAIN_INFO_PRECOMPILE,
+        abi: CHAIN_INFO_ABI,
+        functionName: "get_supported_chains",
+      })
+      .then((rows) => {
+        if (!alive) return;
+        setChains(
+          (rows as readonly { chainKey: bigint; chainId: bigint; chainName: string }[]).map((r) => ({
+            chainKey: Number(r.chainKey),
+            chainId: Number(r.chainId),
+            chainName: r.chainName,
+          })),
+        );
+      })
+      .catch((e) => alive && setError((e as Error).message));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { chains, error };
+}

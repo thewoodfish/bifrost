@@ -9,12 +9,13 @@ import { config } from "../lib/config";
 import { duration, shortHash, usd } from "../lib/format";
 import { explainReason, ProverError } from "../lib/prover";
 import { watch } from "../lib/store";
-import { etaFor, type AttestationStatus } from "../lib/useAttestation";
+import { etaFor, useHeightAttested, type AttestationStatus } from "../lib/useAttestation";
 import type { PortfolioState } from "../lib/usePortfolio";
 import { useRoles } from "../lib/usePortfolio";
 import { useWallet } from "../lib/wallet";
 import { CreditControls } from "./CreditControls";
 import { AttestcoinTag, CreditcoinTag, OriginTag, Step, type StepState } from "./Step";
+import { SupportedChains } from "./SupportedChains";
 
 function TxLink({ chainId, hash }: { chainId: number; hash: string }) {
   return (
@@ -80,9 +81,25 @@ export function PortfolioView({
 
   // ── Attestation ──────────────────────────────────────────────────────────
   const attested = status.attested;
-  const heightReady = lockBlock !== undefined && attested !== null && attested >= lockBlock;
   const remaining = lockBlock !== undefined && attested !== null ? lockBlock - attested : null;
   const eta = lockBlock !== undefined ? etaFor(lockBlock, status) : null;
+
+  // A line that exists at all — open or repaid — proves the height was attested, so
+  // there is nothing left to ask the precompile about.
+  const lineEverOpened = !!line && line.creditLimit > 0n;
+
+  // The authoritative answer, from `is_height_attested`. The comparison against the
+  // latest attested height below is only used to draw the progress bar; the button that
+  // spends gas waits for this.
+  const confirmedAttested = useHeightAttested(
+    portfolio?.isLocked && !lineEverOpened ? lockBlock : undefined,
+  );
+  const heightReady = lineEverOpened || confirmedAttested === true;
+
+  // Latest-height says yes, the precompile has not confirmed yet. A brief, real state —
+  // worth naming rather than showing a full bar that appears stuck.
+  const confirming =
+    !heightReady && lockBlock !== undefined && attested !== null && attested >= lockBlock;
 
   const progress = useMemo(() => {
     if (lockBlock === undefined || attested === null) return 0;
@@ -127,7 +144,7 @@ export function PortfolioView({
     register: portfolio?.exists ? "done" : "active",
     value: !portfolio?.exists ? "idle" : portfolio.dollarValue > 0n ? "done" : "active",
     lock: portfolio?.isLocked ? "done" : portfolio?.dollarValue ? "active" : "idle",
-    attest: !portfolio?.isLocked ? "idle" : heightReady || line?.open ? "done" : "active",
+    attest: !portfolio?.isLocked ? "idle" : heightReady ? "done" : "active",
     // A repaid line is finished, not in progress: "closed" is a done state, not an active one.
     credit: line?.open || stage === "closed" ? "done" : heightReady ? "active" : "idle",
   } as Record<string, StepState>;
@@ -318,11 +335,16 @@ export function PortfolioView({
               detail={
                 !portfolio?.isLocked ? (
                   "Attestcoin validators attest the source block containing the lock."
-                ) : heightReady || line?.open ? (
-                  <>Block {lockBlock?.toLocaleString()} is attested on Creditcoin.</>
+                ) : heightReady ? (
+                  <>
+                    Block {lockBlock?.toLocaleString()} is attested on Creditcoin, confirmed
+                    by <span className="mono">is_height_attested</span>.
+                  </>
+                ) : lockBlock === undefined ? (
+                  "Locating the lock transaction on Sepolia…"
                 ) : (
                   <>
-                    Waiting for Attestcoin to reach block {lockBlock?.toLocaleString()}. This runs
+                    Waiting for Attestcoin to reach block {lockBlock.toLocaleString()}. This runs
                     8–20 minutes behind the source chain and is not tunable.
                   </>
                 )
@@ -336,14 +358,20 @@ export function PortfolioView({
                   <div className="between small">
                     <span className="num muted">
                       {attested !== null ? `attested #${attested.toLocaleString()}` : "reading…"}
-                      {remaining !== null && remaining > 0 && ` · ${remaining.toLocaleString()} blocks to go`}
+                      {remaining !== null && remaining > 0 &&
+                        ` · ${remaining.toLocaleString()} block${remaining === 1 ? "" : "s"} to go`}
                     </span>
                     <span className="dim num">
-                      {eta !== null ? `~${duration(eta)} remaining` : "measuring rate…"}
+                      {confirming
+                        ? "confirming on-chain…"
+                        : eta !== null
+                          ? `~${duration(eta)} remaining`
+                          : "measuring rate…"}
                     </span>
                   </div>
                   <div className="dim small" style={{ marginTop: 8 }}>
-                    Measured live from the ChainInfo precompile. Safe to close this tab — the
+                    Progress measured from the ChainInfo precompile; readiness confirmed by
+                    its <span className="mono">is_height_attested</span> call. Safe to close this tab — the
                     position is recovered from chain on return.
                   </div>
                 </div>
@@ -458,6 +486,8 @@ export function PortfolioView({
           </dl>
         </div>
       </div>
+
+      <SupportedChains />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getAbiItem, type Address } from "viem";
 import { ENGINE_ABI, VAULT_ABI } from "./abis";
 import { config } from "./config";
@@ -122,8 +122,20 @@ export function usePortfolio(portfolioId: string | null): PortfolioState {
   const [error, setError] = useState<string | null>(null);
   const [lock, setLock] = useState<{ tx?: string; block?: number; at?: number }>({});
 
+  /**
+   * Guards against a slow refresh landing in the wrong portfolio's state.
+   *
+   * The lock search can take seconds. Selecting another portfolio while one is in flight
+   * would otherwise let the old result overwrite the new selection — showing one
+   * portfolio's lock transaction under another's id.
+   */
+  const request = useRef(0);
+
   const refresh = useCallback(async () => {
     if (!portfolioId) return;
+    const mine = ++request.current;
+    const stale = () => mine !== request.current;
+
     setLoading(true);
     setError(null);
     try {
@@ -136,6 +148,7 @@ export function usePortfolio(portfolioId: string | null): PortfolioState {
           address: config.poolEngine, abi: ENGINE_ABI, functionName: "getCreditLine", args: [id],
         }) as Promise<CreditLine>,
       ]);
+      if (stale()) return;
       setPortfolio(p);
       setLine(l);
 
@@ -146,15 +159,14 @@ export function usePortfolio(portfolioId: string | null): PortfolioState {
       // position is usable from any browser, not just the one that created it.
       if (p.isLocked && !l.open && !w?.lockTx) {
         const found = await findLockTx(id).catch(() => null);
-        if (found) {
-          watch(portfolioId, { lockTx: found.txHash, lockBlock: found.blockNumber });
-          setLock({ tx: found.txHash, block: found.blockNumber });
-        }
+        // Persist regardless — the lookup is valid even if the user has moved on.
+        if (found) watch(portfolioId, { lockTx: found.txHash, lockBlock: found.blockNumber });
+        if (found && !stale()) setLock({ tx: found.txHash, block: found.blockNumber });
       }
     } catch (e) {
-      setError((e as Error).message);
+      if (!stale()) setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (!stale()) setLoading(false);
     }
   }, [portfolioId]);
 

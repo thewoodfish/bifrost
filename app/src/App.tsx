@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { PortfolioView } from "./components/PortfolioView";
+import { SupportedChains } from "./components/SupportedChains";
 import { listWatched, unwatch, watch, type Watched } from "./lib/store";
 import { useAttestationStatus } from "./lib/useAttestation";
 import { usePortfolio, useStages } from "./lib/usePortfolio";
@@ -48,6 +49,8 @@ function Welcome() {
           </div>
         </div>
       </div>
+
+      <SupportedChains />
     </div>
   );
 }
