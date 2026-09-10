@@ -11,7 +11,7 @@ import { explainReason, ProverError } from "../lib/prover";
 import { watch } from "../lib/store";
 import { etaFor, useHeightAttested, type AttestationStatus } from "../lib/useAttestation";
 import type { PortfolioState } from "../lib/usePortfolio";
-import { useRoles } from "../lib/usePortfolio";
+import { useMaxValuationAge, useRoles } from "../lib/usePortfolio";
 import { useWallet } from "../lib/wallet";
 import { CreditControls } from "./CreditControls";
 import { AttestcoinTag, CreditcoinTag, OriginTag, Step, type StepState } from "./Step";
@@ -34,6 +34,7 @@ export function PortfolioView({
 }) {
   const { address, chainId, clientFor, switchTo } = useWallet();
   const roles = useRoles(address);
+  const maxValuationAge = useMaxValuationAge();
   const { portfolio, line, stage, lockTx, lockBlock, lockedAt } = state;
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -78,6 +79,19 @@ export function PortfolioView({
     },
     [address, chainId, clientFor, switchTo, state],
   );
+
+  // ── Valuation freshness ──────────────────────────────────────────────────
+  // The vault refuses to lock against a valuation older than its window. Showing that
+  // here turns a confusing revert into an obvious next step: get it revalued.
+  const valuationAge =
+    portfolio?.valuedAt && portfolio.valuedAt > 0n
+      ? Date.now() / 1000 - Number(portfolio.valuedAt)
+      : null;
+  const valuationStale =
+    !portfolio?.isLocked &&
+    maxValuationAge !== null &&
+    valuationAge !== null &&
+    valuationAge > maxValuationAge;
 
   // ── Attestation ──────────────────────────────────────────────────────────
   const attested = status.attested;
@@ -253,9 +267,15 @@ export function PortfolioView({
             <Step
               index={2} state={s.value} title="Independent valuation" tag={<OriginTag />}
               detail={
-                portfolio?.dollarValue
-                  ? `${usd(portfolio.dollarValue)} published by a valuer, round ${portfolio.valuationRound}`
-                  : "A valuer — never the borrower — publishes the portfolio's value."
+                portfolio?.dollarValue ? (
+                  <>
+                    {usd(portfolio.dollarValue)} published by a valuer, round{" "}
+                    {String(portfolio.valuationRound)}
+                    {valuationAge !== null && ` · valued ${duration(valuationAge)} ago`}
+                  </>
+                ) : (
+                  "A valuer — never the borrower — publishes the portfolio's value."
+                )
               }
             >
               {portfolio?.exists && !portfolio.isLocked && (
@@ -310,7 +330,7 @@ export function PortfolioView({
                 <>
                   <button
                     className="primary"
-                    disabled={!address || !isOwner || busy !== null}
+                    disabled={!address || !isOwner || valuationStale || busy !== null}
                     onClick={() =>
                       run("lock", origin.id, async (w, a) => {
                         const r = await lockPortfolio(w, a, id);
@@ -324,6 +344,17 @@ export function PortfolioView({
                   {address && !isOwner && (
                     <div className="notice warn" style={{ marginTop: 10 }}>
                       Only the portfolio owner can lock it.
+                    </div>
+                  )}
+                  {valuationStale && (
+                    <div className="notice warn" style={{ marginTop: 10 }}>
+                      <div className="notice-title">This valuation is too old to lock</div>
+                      <span className="small">
+                        It was published {duration(valuationAge!)} ago and the vault accepts
+                        valuations up to {duration(maxValuationAge!)} old. A number nobody has
+                        revisited in that long should not be escrowed — the attestation would
+                        prove it faithfully regardless. Ask the valuer to republish.
+                      </span>
                     </div>
                   )}
                 </>

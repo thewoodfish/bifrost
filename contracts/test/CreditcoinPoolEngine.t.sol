@@ -4,13 +4,14 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {CreditcoinPoolEngine} from "../src/CreditcoinPoolEngine.sol";
 import {IAttestcoinBlockProver} from "../src/interfaces/IAttestcoinBlockProver.sol";
-import {MockBlockProver, MockERC20} from "./mocks/Mocks.sol";
+import {MockBlockProver, MockChainInfo, MockERC20} from "./mocks/Mocks.sol";
 import {AttestedTxBuilder} from "./helpers/AttestedTxBuilder.sol";
 import {AttestedTx} from "../src/lib/AttestedTx.sol";
 
 contract CreditcoinPoolEngineTest is Test {
     CreditcoinPoolEngine engine;
     MockBlockProver prover;
+    MockChainInfo chainInfo;
     MockERC20 usdc;
 
     address constant ORIGIN_VAULT = address(0xBEEF);
@@ -18,6 +19,8 @@ contract CreditcoinPoolEngineTest is Test {
     address constant ATTACKER = address(0xBAD);
     address constant ADMIN = address(0xA11CE);
     uint64 constant CHAIN_KEY = 1; // Sepolia on CC3
+
+    uint64 constant LOCK_HEIGHT = 100;
 
     uint256 constant PORTFOLIO = 1042;
     uint256 constant VALUE = 250_000e6;
@@ -29,8 +32,13 @@ contract CreditcoinPoolEngineTest is Test {
 
     function setUp() public {
         prover = new MockBlockProver();
+        chainInfo = new MockChainInfo();
+        // Frontier sits exactly on the lock height: a freshly attested lock.
+        chainInfo.setLatestHeight(LOCK_HEIGHT);
         usdc = new MockERC20();
-        engine = new CreditcoinPoolEngine(address(prover), address(usdc), ORIGIN_VAULT, CHAIN_KEY, ADMIN);
+        engine = new CreditcoinPoolEngine(
+            address(prover), address(chainInfo), address(usdc), ORIGIN_VAULT, CHAIN_KEY, ADMIN
+        );
         usdc.mint(address(engine), 10_000_000e6);
     }
 
@@ -280,5 +288,88 @@ contract CreditcoinPoolEngineTest is Test {
         uint256 limit = engine.attestAndOpenCredit(_claim(value, BORROWER), receipt, mp, cp);
 
         assertLe(limit, (uint256(value) * 8_000) / 10_000);
+    }
+
+    // -- lock freshness --------------------------------------------------------
+
+    function test_RevertWhen_LockIsOlderThanTheWindow() public {
+        // The proof stays perfectly valid; only the attestation frontier has moved on.
+        // That is precisely the case worth rejecting — an old receipt describes a
+        // portfolio that may no longer resemble what it was valued at.
+        chainInfo.setLatestHeight(LOCK_HEIGHT + engine.maxLockAge() + 1);
+
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        vm.prank(BORROWER);
+        vm.expectRevert(CreditcoinPoolEngine.LockTooOld.selector);
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp);
+    }
+
+    function test_OpenSucceedsAtTheEdgeOfTheLockWindow() public {
+        chainInfo.setLatestHeight(LOCK_HEIGHT + engine.maxLockAge());
+
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        vm.prank(BORROWER);
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp);
+        assertTrue(engine.getCreditLine(PORTFOLIO).open);
+    }
+
+    /// @dev A lock ahead of the frontier is newer than anything attested, not stale.
+    function test_LockAheadOfFrontierIsNotStale() public {
+        chainInfo.setLatestHeight(LOCK_HEIGHT - 50);
+        assertEq(engine.lockAge(LOCK_HEIGHT), 0);
+
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        vm.prank(BORROWER);
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp);
+        assertTrue(engine.getCreditLine(PORTFOLIO).open);
+    }
+
+    function test_PreviewIngest_ExplainsAStaleLock() public {
+        chainInfo.setLatestHeight(LOCK_HEIGHT + engine.maxLockAge() + 1);
+
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        (bool ok, string memory reason) = engine.previewIngest(_claim(VALUE, BORROWER), receipt, mp, cp);
+        assertFalse(ok);
+        assertEq(reason, "lock too old");
+    }
+
+    /// @dev Preview must degrade to a readable reason, not an opaque revert, when the
+    ///      ChainInfo precompile is unreachable.
+    function test_PreviewIngest_SurvivesChainInfoFailure() public {
+        chainInfo.setShouldRevert(true);
+
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        (bool ok, string memory reason) = engine.previewIngest(_claim(VALUE, BORROWER), receipt, mp, cp);
+        assertFalse(ok);
+        assertEq(reason, "chain info unavailable");
+    }
+
+    function test_AdminCanTightenLockWindow() public {
+        vm.prank(ADMIN);
+        engine.setMaxLockAge(10);
+        assertEq(engine.maxLockAge(), 10);
+
+        chainInfo.setLatestHeight(LOCK_HEIGHT + 11);
+        bytes memory receipt = _lockReceipt(ORIGIN_VAULT, BORROWER, PORTFOLIO, VALUE, 1);
+        vm.prank(BORROWER);
+        vm.expectRevert(CreditcoinPoolEngine.LockTooOld.selector);
+        engine.attestAndOpenCredit(_claim(VALUE, BORROWER), receipt, mp, cp);
+    }
+
+    function test_RevertWhen_LockWindowDisabledOrUnbounded() public {
+        uint64 ceiling = engine.MAX_LOCK_AGE_LIMIT();
+
+        vm.startPrank(ADMIN);
+        vm.expectRevert(CreditcoinPoolEngine.BadLockAge.selector);
+        engine.setMaxLockAge(0);
+        vm.expectRevert(CreditcoinPoolEngine.BadLockAge.selector);
+        engine.setMaxLockAge(ceiling + 1);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NonAdminSetsLockWindow() public {
+        vm.prank(ATTACKER);
+        vm.expectRevert(CreditcoinPoolEngine.NotAdmin.selector);
+        engine.setMaxLockAge(10);
     }
 }

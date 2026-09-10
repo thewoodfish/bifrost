@@ -9,7 +9,8 @@ export const RWA_ORIGIN_VAULT_ABI = [
   "function setValuer(address valuer, bool allowed)",
   "function isOriginator(address) view returns (bool)",
   "function isValuer(address) view returns (bool)",
-  "function getPortfolio(uint256 portfolioId) view returns (tuple(address owner, uint256 dollarValue, uint64 valuationRound, bool exists, bool isLocked))",
+  "function maxValuationAge() view returns (uint64)",
+  "function getPortfolio(uint256 portfolioId) view returns (tuple(address owner, uint256 dollarValue, uint64 valuationRound, uint64 valuedAt, bool exists, bool isLocked))",
   "event PortfolioLocked(address indexed owner, uint256 indexed portfolioId, uint256 dollarValue, uint64 valuationRound)",
 ] as const;
 

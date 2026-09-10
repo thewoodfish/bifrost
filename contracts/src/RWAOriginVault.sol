@@ -31,16 +31,27 @@ contract RWAOriginVault {
         address owner;
         uint256 dollarValue;
         uint64 valuationRound;
+        /// @notice When the current valuation was published. Zero until first valued.
+        uint64 valuedAt;
         bool exists;
         bool isLocked;
     }
 
     mapping(uint256 => Portfolio) public portfolios;
 
+    /// @dev Ceiling on how stale a valuation may be at lock time. The freshness
+    ///      requirement is tunable but not admin-removable — same reasoning as the
+    ///      engine's MAX_LTV_BPS: a buffer an admin can switch off is not a buffer.
+    uint64 public constant MAX_VALUATION_AGE_LIMIT = 90 days;
+
+    /// @notice How old a valuation may be when the portfolio is locked.
+    uint64 public maxValuationAge = 7 days;
+
     event OriginatorSet(address indexed originator, bool allowed);
     event ValuerSet(address indexed valuer, bool allowed);
     event PortfolioRegistered(uint256 indexed portfolioId, address indexed owner);
     event PortfolioValued(uint256 indexed portfolioId, uint256 dollarValue, uint64 valuationRound);
+    event MaxValuationAgeUpdated(uint64 maxValuationAge);
     event PortfolioLocked(
         address indexed owner, uint256 indexed portfolioId, uint256 dollarValue, uint64 valuationRound
     );
@@ -57,6 +68,8 @@ contract RWAOriginVault {
     error NotValued();
     error ZeroValue();
     error ZeroAddress();
+    error StaleValuation();
+    error BadValuationAge();
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
@@ -82,6 +95,15 @@ contract RWAOriginVault {
         emit ValuerSet(valuer, allowed);
     }
 
+    /// @notice Tune how fresh a valuation must be at lock time.
+    /// @dev Bounded on both sides: zero would disable the check, and an unbounded
+    ///      ceiling would disable it in all but name.
+    function setMaxValuationAge(uint64 newAge) external onlyAdmin {
+        if (newAge == 0 || newAge > MAX_VALUATION_AGE_LIMIT) revert BadValuationAge();
+        maxValuationAge = newAge;
+        emit MaxValuationAgeUpdated(newAge);
+    }
+
     // -- Portfolio lifecycle ---------------------------------------------------
 
     /// @notice Register a portfolio. Value is published separately by a valuer,
@@ -90,14 +112,16 @@ contract RWAOriginVault {
         if (!isOriginator[msg.sender]) revert NotOriginator();
         if (portfolios[portfolioId].exists) revert PortfolioExists();
 
-        portfolios[portfolioId] =
-            Portfolio({owner: msg.sender, dollarValue: 0, valuationRound: 0, exists: true, isLocked: false});
+        portfolios[portfolioId] = Portfolio({
+            owner: msg.sender, dollarValue: 0, valuationRound: 0, valuedAt: 0, exists: true, isLocked: false
+        });
 
         emit PortfolioRegistered(portfolioId, msg.sender);
     }
 
     /// @notice Publish an independent valuation. Cannot change while locked, so the
-    ///         attested value can never drift from what was proven.
+    ///         attested value can never drift from what was proven. Stamps the
+    ///         publication time, which `lockPortfolio` enforces a bound on.
     function setValuation(uint256 portfolioId, uint256 dollarValue) external {
         if (!isValuer[msg.sender]) revert NotValuer();
         Portfolio storage p = portfolios[portfolioId];
@@ -107,6 +131,7 @@ contract RWAOriginVault {
 
         p.dollarValue = dollarValue;
         p.valuationRound += 1;
+        p.valuedAt = uint64(block.timestamp);
 
         emit PortfolioValued(portfolioId, dollarValue, p.valuationRound);
     }
@@ -118,6 +143,9 @@ contract RWAOriginVault {
         if (p.owner != msg.sender) revert NotPortfolioOwner();
         if (p.isLocked) revert AlreadyLocked();
         if (p.dollarValue == 0) revert NotValued();
+        // A valuation the market has moved past is worse than no valuation: the
+        // attestation would faithfully prove a number nobody stands behind any more.
+        if (block.timestamp - p.valuedAt > maxValuationAge) revert StaleValuation();
 
         p.isLocked = true;
 

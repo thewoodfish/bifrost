@@ -10,6 +10,7 @@ export const VAULT_ABI = [
   { type: "function", name: "isOriginator", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "isValuer", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "admin", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "maxValuationAge", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   {
     type: "function", name: "getPortfolio", stateMutability: "view",
     inputs: [{ name: "portfolioId", type: "uint256" }],
@@ -19,6 +20,7 @@ export const VAULT_ABI = [
         { name: "owner", type: "address" },
         { name: "dollarValue", type: "uint256" },
         { name: "valuationRound", type: "uint64" },
+        { name: "valuedAt", type: "uint64" },
         { name: "exists", type: "bool" },
         { name: "isLocked", type: "bool" },
       ],

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IAttestcoinBlockProver, Attestcoin} from "./interfaces/IAttestcoinBlockProver.sol";
+import {IChainInfo, ChainInfoAddr} from "./interfaces/IChainInfo.sol";
 import {AttestedTx} from "./lib/AttestedTx.sol";
 
 interface IERC20 {
@@ -34,7 +35,13 @@ contract CreditcoinPoolEngine {
     /// @dev Hard ceiling on LTV; the over-collateralization buffer is not admin-removable.
     uint256 public constant MAX_LTV_BPS = 8_000;
 
+    /// @dev Ceiling on the lock-age window, ~7 days of Sepolia blocks. Like the LTV
+    ///      buffer, the freshness requirement is tunable but cannot be switched off.
+    uint64 public constant MAX_LOCK_AGE_LIMIT = 50_400;
+
     IAttestcoinBlockProver public immutable blockProver;
+    /// @notice ChainInfo precompile, used to age the lock against attestation progress.
+    IChainInfo public immutable chainInfo;
     IERC20 public immutable stablecoin;
 
     /// @notice Attested source chain (Sepolia = 1 on CC3 testnet).
@@ -44,6 +51,21 @@ contract CreditcoinPoolEngine {
 
     address public admin;
     uint256 public ltvBps = 8_000;
+
+    /**
+     * @notice How far behind the attestation frontier a lock may be and still open a line.
+     *
+     * @dev The vault bounds how stale a valuation is when it is locked; this bounds how
+     *      long that lock may then sit before it is drawn on. Without it a borrower could
+     *      hold a valid attested receipt indefinitely and open a line long after the
+     *      portfolio it describes stopped resembling reality — the proof would still be
+     *      perfectly valid, which is exactly what makes it dangerous.
+     *
+     *      Measured in source-chain blocks against `get_latest_attestation_height_and_hash`
+     *      rather than in wall-clock time, because the origin block timestamp is not
+     *      available here — only the height the proof pins.
+     */
+    uint64 public maxLockAge = 7_200;
 
     struct LockClaim {
         uint64 chainKey;
@@ -82,6 +104,7 @@ contract CreditcoinPoolEngine {
     event Repaid(address indexed borrower, uint256 indexed portfolioId, uint256 amount);
     event CreditLineClosed(uint256 indexed portfolioId);
     event LtvUpdated(uint256 ltvBps);
+    event MaxLockAgeUpdated(uint64 maxLockAge);
     event AdminTransferred(address indexed newAdmin);
 
     error NotAdmin();
@@ -99,6 +122,8 @@ contract CreditcoinPoolEngine {
     error ExceedsCreditLimit();
     error NothingDrawn();
     error LtvTooHigh();
+    error LockTooOld();
+    error BadLockAge();
     error ZeroValue();
     error TransferFailed();
 
@@ -107,9 +132,19 @@ contract CreditcoinPoolEngine {
         _;
     }
 
-    constructor(address _blockProver, address _stablecoin, address _originVault, uint64 _chainKey, address _admin) {
-        if (_stablecoin == address(0) || _originVault == address(0) || _admin == address(0)) revert ZeroAddress();
+    constructor(
+        address _blockProver,
+        address _chainInfo,
+        address _stablecoin,
+        address _originVault,
+        uint64 _chainKey,
+        address _admin
+    ) {
+        if (_stablecoin == address(0) || _originVault == address(0) || _admin == address(0)) {
+            revert ZeroAddress();
+        }
         blockProver = IAttestcoinBlockProver(_blockProver == address(0) ? Attestcoin.BLOCK_PROVER : _blockProver);
+        chainInfo = IChainInfo(_chainInfo == address(0) ? ChainInfoAddr.CHAIN_INFO : _chainInfo);
         stablecoin = IERC20(_stablecoin);
         originVault = _originVault;
         expectedChainKey = _chainKey;
@@ -134,6 +169,9 @@ contract CreditcoinPoolEngine {
         if (claim.chainKey != expectedChainKey) revert BadChainKey();
         if (claim.borrower != msg.sender) revert BorrowerMismatch();
         if (portfolioHasOpenLine[claim.portfolioId]) revert LineAlreadyOpen();
+        // A valid proof says nothing about age. Reject a lock the attestation frontier
+        // has long since left behind, before paying for verification.
+        if (_lockAge(claim.height) > maxLockAge) revert LockTooOld();
 
         bytes32 receiptId = keccak256(encodedTx);
         if (usedReceipt[receiptId]) revert ReceiptAlreadyUsed();
@@ -203,7 +241,27 @@ contract CreditcoinPoolEngine {
         (uint256 value,) = abi.decode(data, (uint256, uint64));
         if (value != claim.dollarValue) return (false, "value mismatch");
 
+        try this.lockAge(claim.height) returns (uint64 age) {
+            if (age > maxLockAge) return (false, "lock too old");
+        } catch {
+            return (false, "chain info unavailable");
+        }
+
         return (true, "");
+    }
+
+    /// @notice How many source blocks behind the attestation frontier `height` sits.
+    /// @dev External so `previewIngest` can call it inside a `try`, keeping a precompile
+    ///      failure a readable reason string rather than an opaque revert.
+    function lockAge(uint64 height) external view returns (uint64) {
+        return _lockAge(height);
+    }
+
+    function _lockAge(uint64 height) internal view returns (uint64) {
+        (uint64 latest,,,) = chainInfo.get_latest_attestation_height_and_hash(expectedChainKey);
+        // The frontier trailing the proven height means the lock is newer than anything
+        // attested, which cannot be stale.
+        return latest > height ? latest - height : 0;
     }
 
     /// @dev Pull owner, value and valuation round out of the proven receipt.
@@ -264,6 +322,13 @@ contract CreditcoinPoolEngine {
         if (newLtvBps > MAX_LTV_BPS || newLtvBps == 0) revert LtvTooHigh();
         ltvBps = newLtvBps;
         emit LtvUpdated(newLtvBps);
+    }
+
+    /// @notice Tune the lock-age window. Bounded on both sides so it cannot be disabled.
+    function setMaxLockAge(uint64 newMaxLockAge) external onlyAdmin {
+        if (newMaxLockAge == 0 || newMaxLockAge > MAX_LOCK_AGE_LIMIT) revert BadLockAge();
+        maxLockAge = newMaxLockAge;
+        emit MaxLockAgeUpdated(newMaxLockAge);
     }
 
     function transferAdmin(address newAdmin) external onlyAdmin {

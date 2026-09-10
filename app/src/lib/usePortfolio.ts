@@ -9,6 +9,8 @@ export interface Portfolio {
   owner: Address;
   dollarValue: bigint;
   valuationRound: bigint;
+  /** When the current valuation was published. Zero until first valued. */
+  valuedAt: bigint;
   exists: boolean;
   isLocked: boolean;
 }
@@ -257,4 +259,26 @@ export function useStages(ids: string[], nonce = 0): Record<string, Stage> {
   }, [key, nonce]);
 
   return stages;
+}
+
+/**
+ * The vault's valuation freshness window, in seconds.
+ *
+ * Read from chain rather than hardcoded: it is admin-tunable, and a portal that
+ * disagreed with the contract would warn about the wrong thing — or fail to warn.
+ */
+export function useMaxValuationAge(): number | null {
+  const [age, setAge] = useState<number | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (originClient.readContract({
+      address: config.originVault, abi: VAULT_ABI, functionName: "maxValuationAge",
+    }) as Promise<bigint>)
+      .then((v) => alive && setAge(Number(v)))
+      .catch(() => undefined);
+    return () => { alive = false; };
+  }, []);
+
+  return age;
 }

@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {CreditcoinPoolEngine} from "../src/CreditcoinPoolEngine.sol";
 import {TestUSDC} from "../src/TestUSDC.sol";
 import {Attestcoin} from "../src/interfaces/IAttestcoinBlockProver.sol";
+import {ChainInfoAddr} from "../src/interfaces/IChainInfo.sol";
 
 /**
  * @notice Deploys the credit pool to Creditcoin CC3 testnet and funds it.
@@ -41,6 +42,7 @@ contract DeployCreditcoin is Script {
 
         engine = new CreditcoinPoolEngine(
             Attestcoin.BLOCK_PROVER, // pass address(0) to fall back to the same constant
+            ChainInfoAddr.CHAIN_INFO, // ditto — used to age locks against attestation
             stablecoin,
             originVault,
             chainKey,

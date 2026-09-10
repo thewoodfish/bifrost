@@ -149,4 +149,74 @@ contract RWAOriginVaultTest is Test {
         vm.expectRevert(RWAOriginVault.NotAdmin.selector);
         vault.setOriginator(OUTSIDER, true);
     }
+
+    // -- valuation freshness ---------------------------------------------------
+
+    function test_ValuationStampsPublicationTime() public {
+        vm.warp(1_000_000);
+        _registerAndValue();
+        assertEq(vault.getPortfolio(PORTFOLIO).valuedAt, 1_000_000);
+    }
+
+    function test_RevertWhen_LockingOnAStaleValuation() public {
+        _registerAndValue();
+        // One second past the window. The valuation is still on-chain and still signed
+        // by an approved valuer — it is simply too old to escrow against.
+        skip(vault.maxValuationAge() + 1);
+        vm.prank(ORIGINATOR);
+        vm.expectRevert(RWAOriginVault.StaleValuation.selector);
+        vault.lockPortfolio(PORTFOLIO);
+    }
+
+    function test_LockSucceedsAtTheEdgeOfTheWindow() public {
+        _registerAndValue();
+        skip(vault.maxValuationAge());
+        vm.prank(ORIGINATOR);
+        vault.lockPortfolio(PORTFOLIO);
+        assertTrue(vault.getPortfolio(PORTFOLIO).isLocked);
+    }
+
+    function test_RevaluingRefreshesTheWindow() public {
+        _registerAndValue();
+        skip(vault.maxValuationAge() + 1);
+
+        // A fresh valuation is the remedy for a stale one.
+        vm.prank(VALUER);
+        vault.setValuation(PORTFOLIO, VALUE);
+        vm.prank(ORIGINATOR);
+        vault.lockPortfolio(PORTFOLIO);
+        assertTrue(vault.getPortfolio(PORTFOLIO).isLocked);
+    }
+
+    function test_AdminCanTightenValuationWindow() public {
+        vm.prank(ADMIN);
+        vault.setMaxValuationAge(1 days);
+        assertEq(vault.maxValuationAge(), 1 days);
+
+        _registerAndValue();
+        skip(2 days);
+        vm.prank(ORIGINATOR);
+        vm.expectRevert(RWAOriginVault.StaleValuation.selector);
+        vault.lockPortfolio(PORTFOLIO);
+    }
+
+    /// @dev The freshness bound is tunable but not removable — the point of the control.
+    function test_RevertWhen_ValuationWindowDisabledOrUnbounded() public {
+        // Read the ceiling first: expectRevert binds to the very next call, and a
+        // getter invoked after arming it would swallow the expectation.
+        uint64 ceiling = vault.MAX_VALUATION_AGE_LIMIT();
+
+        vm.startPrank(ADMIN);
+        vm.expectRevert(RWAOriginVault.BadValuationAge.selector);
+        vault.setMaxValuationAge(0);
+        vm.expectRevert(RWAOriginVault.BadValuationAge.selector);
+        vault.setMaxValuationAge(ceiling + 1);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NonAdminSetsValuationWindow() public {
+        vm.prank(OUTSIDER);
+        vm.expectRevert(RWAOriginVault.NotAdmin.selector);
+        vault.setMaxValuationAge(1 days);
+    }
 }

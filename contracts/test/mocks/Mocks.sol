@@ -69,3 +69,27 @@ contract MockERC20 {
         return true;
     }
 }
+
+/// @notice Stand-in for the Attestcoin ChainInfo precompile in local tests.
+/// @dev Only the attestation frontier matters here; the engine ages a lock against it.
+contract MockChainInfo {
+    uint64 public latestHeight;
+    bool public shouldRevert;
+
+    function setLatestHeight(uint64 h) external {
+        latestHeight = h;
+    }
+
+    function setShouldRevert(bool r) external {
+        shouldRevert = r;
+    }
+
+    function get_latest_attestation_height_and_hash(uint64) external view returns (uint64, bytes32, bool, bool) {
+        if (shouldRevert) revert("chain info failure");
+        return (latestHeight, bytes32(0), true, true);
+    }
+
+    function is_height_attested(uint64, uint64 height) external view returns (bool) {
+        return height <= latestHeight;
+    }
+}

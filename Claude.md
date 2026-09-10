@@ -86,7 +86,13 @@ price their own collateral, which is the credibility basis of the whole protocol
 it, a borrower could assert any value and the attestation would faithfully prove a lie.
 
 Lifecycle: `registerPortfolio` -> `setValuation` (valuer only, frozen once locked) ->
-`lockPortfolio` (owner only, requires a valuation) -> `unlockPortfolio` (admin).
+`lockPortfolio` (owner only, requires a *fresh* valuation) -> `unlockPortfolio` (admin).
+
+`setValuation` stamps `valuedAt`, and `lockPortfolio` reverts with `StaleValuation` once
+that stamp is older than `maxValuationAge` (7 days by default, admin-tunable up to
+`MAX_VALUATION_AGE_LIMIT` of 90 days, never zero). Escrowing against a number nobody has
+revisited is the failure the attestation cannot catch: it would prove a stale valuation
+exactly as faithfully as a fresh one.
 
 `lockPortfolio` emits the fact Attestcoin proves, and **the event layout is load-bearing**
 because the Creditcoin engine decodes it out of the receipt:
@@ -173,6 +179,10 @@ Live and working. **Its functions are snake_case**, not camelCase — querying
 `getSupportedChains()` returns `Unknown selector`, which reads like the precompile is
 missing when it is simply named differently. See `src/interfaces/IChainInfo.sol`.
 
+`CreditcoinPoolEngine` calls `get_latest_attestation_height_and_hash` on-chain to age a
+lock against the attestation frontier, rejecting a proof more than `maxLockAge` source
+blocks behind it — so ChainInfo is part of the credit decision, not only the UI.
+
 `get_supported_chains()` on CC3 returns exactly two attested source chains:
 
 | chainKey | chainId | name |
@@ -193,7 +203,7 @@ attestation lag in the UI rather than a fake progress bar.
 cd contracts
 
 forge build            # compile (via_ir enabled; needed for engine stack depth)
-forge test             # 40 tests
+forge test             # 55 tests
 forge test -vvv        # with traces
 forge fmt              # format
 
@@ -237,8 +247,15 @@ works either way, but a dedicated endpoint answers in one batch instead of sever
 ## 9. Open decisions and known gaps
 
 Resolved since the first draft: the Attestcoin interface is verified (section 5), the
-value-binding vulnerability is closed (section 6), and vault access control now separates
-originator from valuer.
+value-binding vulnerability is closed (section 6), vault access control now separates
+originator from valuer, valuation freshness is bounded on both sides (below), and the
+naming is settled — the protocol is Bifrost, and no `intersect.fi` reference survives
+anywhere in the tree.
+
+> **The contracts are ahead of the deployed addresses.** Valuation freshness landed after
+> the 2026-09-08 deploy, so the live vault and engine in `docs/addresses.md` do not
+> enforce it. Redeploying means new addresses and re-seeding the demo state, since
+> `originVault` is immutable on the engine.
 
 Still open:
 
@@ -260,10 +277,12 @@ Still open:
 5. **No interest accrual, health factor, or liquidation.** The LTV buffer is enforced only
    at open. A position that goes underwater against a later valuation is not enforced
    on-chain.
-6. **Valuation freshness is unbounded.** A valuer's number is trusted indefinitely once
-   locked; there is no staleness check.
-7. **Domain naming.** Earlier drafts referenced `intersect.fi` while the protocol is
-   Bifrost. Pick one.
+6. **Freshness is bounded in code, not yet on chain.** Two controls, 55 tests:
+   `RWAOriginVault.maxValuationAge` (default 7 days) rejects a lock whose valuation has
+   gone stale, and `CreditcoinPoolEngine.maxLockAge` (default 7200 source blocks) rejects
+   a proof whose lock the attestation frontier has left behind. Both are admin-tunable
+   between hard bounds but cannot be switched off, mirroring `MAX_LTV_BPS`. Not deployed
+   — see the note above.
 ## 10. Business context
 
 Useful when writing pitch material, docs, or demo narration.
