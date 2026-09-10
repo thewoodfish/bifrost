@@ -6,12 +6,13 @@ Guidance for Claude Code when working in this repository.
 
 ## 1. Project status
 
-**Contracts deployed and validated end-to-end; no frontend yet.** `contracts/` is a
-Foundry project with the origin vault, the Creditcoin pool engine, a receipt decoder, and
-40 passing tests. Live on Sepolia and CC3 testnet as of 2026-09-08 — addresses in
-`docs/addresses.md`.
+**Contracts deployed and validated end-to-end; the portal is built and driving them.**
+`contracts/` is a Foundry project with the origin vault, the Creditcoin pool engine, a
+receipt decoder, and 40 passing tests. Live on Sepolia and CC3 testnet as of 2026-09-08 —
+addresses in `docs/addresses.md`. `app/` is the React portal, verified against the live
+deployment as of 2026-09-09.
 
-Sections 4-6 now describe shipped code. Section 7 (the portal) is still design only.
+Sections 4-7 now describe shipped code.
 ## 2. What Bifrost is
 
 **Bifrost is a cross-chain private credit protocol.** It lets real-world-asset (RWA)
@@ -158,7 +159,9 @@ attestable receipt, and would otherwise fund a credit line off a failed lock.
 ### Off-chain
 
 - SDK: `@gluwa/usc-sdk` (v0.18.0) — `proofProvider`, `waitUntilHeightAttested`, `getProof`
-- Prover API: `https://proof-gen-api.cc3-testnet.creditcoin.network`
+- Prover API: `https://prover.cc3-testnet.creditcoin.network` — proofs at
+  `GET /api/v1/proof-by-tx/{chainKey}/{txHash}`, which is what the SDK's `ProofBuilder`
+  calls. Serves CORS `*`, so the browser can call it with no backend in between.
 - Creditcoin CC3 testnet RPC: `https://rpc.cc3-testnet.creditcoin.network` (chain id 102031)
 - **Sepolia `chainKey = 1`.** Ethereum mainnet is `chainKey = 3`; nothing else is supported.
 - **Attestation latency is 8-20 minutes.** Design every flow and demo around this; it is
@@ -214,7 +217,23 @@ npm run bifrost -- open <txHash>       # wait for attestation, prove, open credi
 npm run bifrost -- line 1042
 ```
 
-Frontend commands land here when the portal is scaffolded.
+### Portal
+
+```bash
+cd app && npm install
+npm run dev          # http://localhost:5173
+npm run build        # tsc -b && vite build
+npm run typecheck
+```
+
+No backend: the portal reads both chains over RPC and calls the prover directly, which
+serves `Access-Control-Allow-Origin: *`. Addresses default to `docs/addresses.md`;
+override with `VITE_ORIGIN_VAULT`, `VITE_POOL_ENGINE`, `VITE_STABLECOIN`,
+`VITE_PROVER_URL`, `VITE_CHAIN_KEY`.
+
+**Set `VITE_SEPOLIA_RPC_URL` for a demo.** The default public Sepolia endpoint caps
+`eth_getLogs` at 1000 blocks and rate-limits. `findLockTx` chunks below that limit so it
+works either way, but a dedicated endpoint answers in one batch instead of several.
 ## 9. Open decisions and known gaps
 
 Resolved since the first draft: the Attestcoin interface is verified (section 5), the
@@ -232,7 +251,10 @@ Still open:
    11664110, opened a $200,000 line on CC3 and drew $50,000; a replayed receipt was
    rejected. The decoder needed no changes for a genuine Sepolia receipt.
    The vault is verified on Sepolia Etherscan; CC3 offers no explorer verification.
-3. **No frontend.** Section 7 is still design only.
+3. **Portal is read/write complete but unaudited.** `app/` drives the full lifecycle —
+   register, value, lock, watch attestation, preview, open, draw, repay — and was verified
+   end-to-end against portfolio 1042 on the live deployment. It has no tests; the
+   verification was manual.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
 5. **No interest accrual, health factor, or liquidation.** The LTV buffer is enforced only
