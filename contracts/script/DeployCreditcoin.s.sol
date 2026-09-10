@@ -49,7 +49,10 @@ contract DeployCreditcoin is Script {
             admin
         );
 
-        if (existingToken == address(0) && liquidity > 0) {
+        // Fund the pool whether or not the token is freshly deployed. Gating this on a
+        // new token meant that reusing an existing stablecoin — the normal path on a
+        // redeploy — silently shipped a pool with nothing in it to draw.
+        if (liquidity > 0) {
             TestUSDC(stablecoin).mint(address(engine), liquidity);
         }
 
@@ -60,7 +63,15 @@ contract DeployCreditcoin is Script {
         console.log("  originVault:       ", originVault);
         console.log("  chainKey:          ", chainKey);
         console.log("  blockProver:       ", Attestcoin.BLOCK_PROVER);
+        console.log("  chainInfo:         ", ChainInfoAddr.CHAIN_INFO);
         console.log("  admin:             ", admin);
         console.log("  pool liquidity:    ", liquidity);
+
+        uint256 funded = TestUSDC(stablecoin).balanceOf(address(engine));
+        console.log("  pool balance:      ", funded);
+        if (funded == 0) {
+            console.log("");
+            console.log("WARNING: the pool holds no stablecoin. Lines will open but nothing can be drawn.");
+        }
     }
 }

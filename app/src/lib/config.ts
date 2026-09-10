@@ -11,11 +11,11 @@ function addr(v: string | undefined, fallback: string): Address {
 export const config = {
   originVault: addr(
     import.meta.env.VITE_ORIGIN_VAULT,
-    "0xD4420269d42D6d0243bCb1Ac923D1B5563154138",
+    "0x13F8630216EeF192ea74fc2AfA47Bd9edA372b7b",
   ),
   poolEngine: addr(
     import.meta.env.VITE_POOL_ENGINE,
-    "0xD4420269d42D6d0243bCb1Ac923D1B5563154138",
+    "0x33280d3558B174563a1CDd6590640Dd1C7e41a32",
   ),
   stablecoin: addr(
     import.meta.env.VITE_STABLECOIN,
