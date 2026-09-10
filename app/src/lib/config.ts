@@ -22,6 +22,13 @@ export const config = {
     "0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B",
   ),
 
+  /**
+   * Deploy blocks, where the indexer starts reading events. Nothing can predate a
+   * contract, so starting earlier only costs RPC calls. Override alongside the addresses.
+   */
+  originVaultFromBlock: BigInt(import.meta.env.VITE_ORIGIN_VAULT_FROM_BLOCK || 11675595),
+  poolEngineFromBlock: BigInt(import.meta.env.VITE_POOL_ENGINE_FROM_BLOCK || 5464049),
+
   /** Sepolia's chainKey on Attestcoin. Ethereum mainnet is 3; nothing else is attested. */
   chainKey: Number(import.meta.env.VITE_CHAIN_KEY ?? 1),
 
@@ -42,3 +49,9 @@ export const config = {
 
 export const CHAIN_INFO_PRECOMPILE =
   "0x0000000000000000000000000000000000000fD3" as Address;
+
+export const BLOCK_PROVER_PRECOMPILE =
+  "0x0000000000000000000000000000000000000FD2" as Address;
+
+/** Rough block times, for turning block counts into wall-clock estimates. */
+export const SEPOLIA_BLOCK_SECONDS = 12;

@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { ProtocolProvider } from "./lib/protocol";
 import { WalletProvider } from "./lib/wallet";
 import "./styles.css";
 
@@ -10,7 +11,9 @@ if (!root) throw new Error("#root is missing from index.html");
 createRoot(root).render(
   <StrictMode>
     <WalletProvider>
-      <App />
+      <ProtocolProvider>
+        <App />
+      </ProtocolProvider>
     </WalletProvider>
   </StrictMode>,
 );

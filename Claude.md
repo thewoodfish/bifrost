@@ -239,11 +239,26 @@ npm run typecheck
 No backend: the portal reads both chains over RPC and calls the prover directly, which
 serves `Access-Control-Allow-Origin: *`. Addresses default to `docs/addresses.md`;
 override with `VITE_ORIGIN_VAULT`, `VITE_POOL_ENGINE`, `VITE_STABLECOIN`,
-`VITE_PROVER_URL`, `VITE_CHAIN_KEY`.
+`VITE_PROVER_URL`, `VITE_CHAIN_KEY` — and, on any redeploy, `VITE_ORIGIN_VAULT_FROM_BLOCK`
+and `VITE_POOL_ENGINE_FROM_BLOCK` (the deploy blocks the indexer starts from).
+
+Hash-routed surfaces, one per persona: `#/` landing (live stats and a real position),
+`#/app` borrower console (portfolios found by owner — no ids to type), `#/p/:id` the
+portfolio, driven by one `phase` (`lib/phase.ts`) from offer → proof in transit → claim →
+active line, `#/valuer` the valuation desk, `#/ledger` every lock and line, and
+`#/verify/:id`, which re-runs the proof in the browser: prover fetch, receipt decode
+(`lib/proof.ts`, mirroring `AttestedTx.sol`), `BlockProver.verify()`, receiptId binding —
+plus a forged-value submission the precompile rejects.
+
+`lib/indexer.ts` reads every vault and engine event since deploy, caches progress in
+localStorage, and derives portfolios, lines and totals; `lib/protocol.tsx` shares it with
+the attestation frontier and pool liquidity. Live `getPortfolio`/`getCreditLine` reads
+still gate every write.
 
 **Set `VITE_SEPOLIA_RPC_URL` for a demo.** The default public Sepolia endpoint caps
-`eth_getLogs` at 1000 blocks and rate-limits. `findLockTx` chunks below that limit so it
-works either way, but a dedicated endpoint answers in one batch instead of several.
+`eth_getLogs` at 1000 blocks and rate-limits. The indexer chunks below that limit (and
+CC3 at 5000, past which it times out) so it works either way, but a dedicated endpoint
+answers in fewer calls.
 ## 9. Open decisions and known gaps
 
 Resolved since the first draft: the Attestcoin interface is verified (section 5), the
@@ -269,9 +284,11 @@ Still open:
    rejected. The decoder needed no changes for a genuine Sepolia receipt.
    The vault is verified on Sepolia Etherscan; CC3 offers no explorer verification.
 3. **Portal is read/write complete but unaudited.** `app/` drives the full lifecycle —
-   register, value, lock, watch attestation, preview, open, draw, repay — and was verified
-   end-to-end against portfolio 1042 on the live deployment. It has no tests; the
-   verification was manual.
+   register, value, lock, watch attestation, preview, open, draw, repay. The 2026-09-10
+   rebuild was checked in a headless browser against the live deployment — landing,
+   ledger, valuation desk, portfolio 2001's claim checks, and the verify page including
+   the forged-value rejection — but no write was sent from it, so the offer, in-transit,
+   active-line and repaid screens are unexercised against real state. It has no tests.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
 5. **No interest accrual, health factor, or liquidation.** The LTV buffer is enforced only

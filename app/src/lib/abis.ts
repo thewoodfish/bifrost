@@ -1,3 +1,5 @@
+import { parseAbi } from "viem";
+
 /**
  * ABIs for the contracts the portal drives. Mirrors sdk/src/abis.ts — the two must agree,
  * since the CLI and the portal open lines on the same engine.
@@ -82,6 +84,9 @@ export const ENGINE_ABI = [
   { type: "function", name: "ltvBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "originVault", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "expectedChainKey", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "maxLockAge", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "lockAge", stateMutability: "view", inputs: [{ name: "height", type: "uint64" }], outputs: [{ type: "uint64" }] },
+  { type: "function", name: "usedReceipt", stateMutability: "view", inputs: [{ name: "", type: "bytes32" }], outputs: [{ type: "bool" }] },
   {
     type: "function", name: "getCreditLine", stateMutability: "view",
     inputs: [{ name: "portfolioId", type: "uint256" }],
@@ -97,6 +102,41 @@ export const ENGINE_ABI = [
         { name: "open", type: "bool" },
       ],
     }],
+  },
+] as const;
+
+/**
+ * Every event the indexer reads. Together they are the whole protocol history: the
+ * portal derives portfolios, credit lines and protocol totals from these alone.
+ */
+export const VAULT_EVENTS = parseAbi([
+  "event PortfolioRegistered(uint256 indexed portfolioId, address indexed owner)",
+  "event PortfolioValued(uint256 indexed portfolioId, uint256 dollarValue, uint64 valuationRound)",
+  "event PortfolioLocked(address indexed owner, uint256 indexed portfolioId, uint256 dollarValue, uint64 valuationRound)",
+  "event PortfolioUnlocked(address indexed owner, uint256 indexed portfolioId)",
+  "event ValuerSet(address indexed valuer, bool allowed)",
+  "event OriginatorSet(address indexed originator, bool allowed)",
+]);
+
+export const ENGINE_EVENTS = parseAbi([
+  "event CreditLineOpened(address indexed borrower, uint256 indexed portfolioId, uint256 attestedValue, uint256 creditLimit, uint64 valuationRound, bytes32 receiptId)",
+  "event Drawn(address indexed borrower, uint256 indexed portfolioId, uint256 amount)",
+  "event Repaid(address indexed borrower, uint256 indexed portfolioId, uint256 amount)",
+  "event CreditLineClosed(uint256 indexed portfolioId)",
+]);
+
+/** BlockProver precompile, read-only form. Struct order is load-bearing: root before siblings. */
+export const BLOCK_PROVER_ABI = [
+  {
+    type: "function", name: "verify", stateMutability: "view",
+    inputs: [
+      { name: "chainKey", type: "uint64" },
+      { name: "height", type: "uint64" },
+      { name: "encodedTransaction", type: "bytes" },
+      MERKLE,
+      CONTINUITY,
+    ],
+    outputs: [{ type: "bool" }],
   },
 ] as const;
 

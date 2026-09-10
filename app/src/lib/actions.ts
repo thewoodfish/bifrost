@@ -5,7 +5,6 @@ import { config } from "./config";
 import { creditcoin, origin } from "./chains";
 import { creditcoinClient, originClient } from "./clients";
 import { fetchProof, ProverError, type AttestcoinProof } from "./prover";
-import { watch } from "./store";
 
 export interface LockResult {
   txHash: Hex;
@@ -61,17 +60,13 @@ export async function lockPortfolio(
         const a = parsed.args as unknown as {
           owner: Address; portfolioId: bigint; dollarValue: bigint; valuationRound: bigint;
         };
-        const result = {
+        return {
           txHash: hash,
           blockNumber: Number(receipt.blockNumber),
           dollarValue: a.dollarValue,
           valuationRound: a.valuationRound,
           owner: a.owner,
         };
-        watch(portfolioId.toString(), {
-          lockTx: hash, lockBlock: result.blockNumber, lockedAt: Date.now(),
-        });
-        return result;
       }
     } catch {
       // Not the event we want; keep looking.
@@ -101,8 +96,9 @@ export interface PreviewResult {
 export async function previewOpen(
   portfolioId: bigint, lockTx: string, borrower: Address,
   dollarValue: bigint, valuationRound: bigint,
+  prefetched?: AttestcoinProof,
 ): Promise<PreviewResult> {
-  const proof = await fetchProof(lockTx);
+  const proof = prefetched ?? (await fetchProof(lockTx));
   const claim = {
     chainKey: BigInt(proof.chainKey),
     height: BigInt(proof.height),
