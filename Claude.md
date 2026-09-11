@@ -245,7 +245,7 @@ and `VITE_POOL_ENGINE_FROM_BLOCK` (the deploy blocks the indexer starts from).
 `#/` is a standalone marketing page (live metrics, a real position as the hero shot); every
 other route renders inside `components/AppShell.tsx` — sidebar with the live attestation
 widget, breadcrumbed topbar, ⌘K palette (`CommandPalette.tsx`), and transaction toasts
-(`lib/toast.tsx`, fed by `useTx`). Dark theme, Geist; the indigo → violet → amber spectrum
+(`lib/toast.tsx`, fed by `useTx`). Light theme only, Geist; the indigo → violet → amber spectrum
 is the brand and is reserved for proofs moving between chains.
 
 Hash-routed surfaces, one per persona: `#/` landing,

@@ -119,7 +119,6 @@ export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden className="logo">
       <rect width="32" height="32" rx="9" fill="#10121A" />
-      <rect x="0.5" y="0.5" width="31" height="31" rx="8.5" fill="none" stroke="rgba(255,255,255,0.1)" />
       <path d="M6.5 22.5a9.5 9.5 0 0 1 19 0" fill="none" stroke="#7382FF" strokeWidth="2.6" strokeLinecap="round" />
       <path d="M10.5 22.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="#B48CFF" strokeWidth="2.6" strokeLinecap="round" />
       <path d="M14.4 22.5a1.6 1.6 0 0 1 3.2 0" fill="none" stroke="#FFB547" strokeWidth="2.6" strokeLinecap="round" />

@@ -51,18 +51,18 @@ function BridgeArc({ moving }: { moving: boolean }) {
     <svg className="arc" viewBox="0 0 320 124" preserveAspectRatio="none" aria-hidden>
       <defs>
         <linearGradient id="arc-g" x1="0" x2="1">
-          <stop offset="0" stopColor="#7382FF" />
-          <stop offset="0.5" stopColor="#B48CFF" />
-          <stop offset="1" stopColor="#FFB547" />
+          <stop offset="0" stopColor="#5563F0" />
+          <stop offset="0.5" stopColor="#9460F0" />
+          <stop offset="1" stopColor="#F29B12" />
         </linearGradient>
         <filter id="arc-glow" x="-20%" y="-50%" width="140%" height="200%">
           <feGaussianBlur stdDeviation="5" />
         </filter>
       </defs>
-      <path d={d} fill="none" stroke="url(#arc-g)" strokeWidth="6" opacity="0.35" filter="url(#arc-glow)" />
+      <path d={d} fill="none" stroke="url(#arc-g)" strokeWidth="6" opacity="0.25" filter="url(#arc-glow)" />
       <path d={d} fill="none" stroke="url(#arc-g)" strokeWidth="2" />
       <path d={d} fill="none" stroke="#fff" strokeWidth="2" strokeDasharray="2 14" className="arc-dash" opacity="0.55" />
-      <circle r="5" fill="#fff" className="arc-packet">
+      <circle r="5" fill="#fff" stroke="#8457E8" strokeWidth="2.5" className="arc-packet">
         <animateMotion dur={moving ? "3.6s" : "2.8s"} repeatCount="indefinite" path={d} keyPoints="0;1" keyTimes="0;1" calcMode="linear" />
       </circle>
     </svg>
