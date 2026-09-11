@@ -1,6 +1,7 @@
 # Deployed addresses
 
-Deployed 2026-09-10 from keystore account `bifrost`
+Vault deployed 2026-09-10, pool engine redeployed 2026-09-11 with the lender side (LP
+shares, interest, reserve factor), both from keystore account `bifrost`
 (`0x3656ABd007AED9B9A572a63c58447044D69f8DAf`).
 
 This deployment supersedes the 2026-09-08 one, which predates the valuation- and
@@ -22,20 +23,22 @@ valuer `0x8B88c241c819c3cd1064DcFe018324195a6a3a6B`. Confirmed on-chain that
 
 | Contract | Address | Verified |
 |---|---|---|
-| CreditcoinPoolEngine | `0x33280d3558B174563a1CDd6590640Dd1C7e41a32` | n/a — CC3 has no explorer verification |
+| CreditcoinPoolEngine | `0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8` (block 5469076) | n/a — CC3 has no explorer verification |
 | TestUSDC | `0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B` | n/a — carried over from the previous deployment |
 | BlockProver (Attestcoin precompile) | `0x0000000000000000000000000000000000000FD2` | n/a |
 | ChainInfo (Attestcoin precompile) | `0x0000000000000000000000000000000000000FD3` | n/a |
 
 Engine config, read back on-chain after deploy:
 `originVault` = the Sepolia vault above, `expectedChainKey` = 1, `ltvBps` = 8000,
-`maxLockAge` = 7200 source blocks, `blockProver` = `0x…0FD2`, `chainInfo` = `0x…0FD3`,
-pool funded with 10,000,000 TestUSDC (1e13 base units).
+`maxLockAge` = 7200 source blocks, `borrowRateBps` = 800 (8% APR), `reserveFactorBps` =
+2500 (25% of interest to protocol reserves), `blockProver` = `0x…0FD2`, `chainInfo` =
+`0x…0FD3`. Seeded with 10,000,000 TestUSDC through `deposit` as the first LP (deployer
+holds 1e19 shares), deposit tx `0x01c973fa…d85a6c`.
 
-Note: the pool had to be funded by a separate `mint` call. `DeployCreditcoin` only minted
-when it deployed a fresh token, so reusing `STABLECOIN` — the normal redeploy path — left
-the pool empty. Fixed in the script; the deploy now reports the pool balance and warns if
-it is zero.
+Note: the seed deposit in `DeployCreditcoin` ran out of gas on CC3 (Foundry's local gas
+estimate, 149,468, versus 210,756 actually used — CC3 prices storage writes higher) and
+was resent with `cast send --gas-limit`. Pass `--gas-estimate-multiplier 200` to
+`forge script` on CC3 to avoid it.
 
 ## Demo state
 
@@ -61,6 +64,16 @@ the attestation frontier passes block ~11,682,814 — around 15:00 UTC on 2026-0
 that the portal shows "Claim window closed"; lock fresh ids before any demo past then.
 
 ## Retired
+
+### 2026-09-10 engine — before the lender side
+
+| Contract | Chain | Address |
+|---|---|---|
+| CreditcoinPoolEngine | CC3 | `0x33280d3558B174563a1CDd6590640Dd1C7e41a32` |
+
+Funded by a direct mint, no LP shares or interest. It never opened a line. Replaced only
+on the Creditcoin side: the vault is unchanged, so locks made against it stay claimable
+on the new engine.
 
 Keep superseded addresses here so borrowers can still repay open lines.
 

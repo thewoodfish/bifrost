@@ -60,12 +60,17 @@ Record the address into `.env` as `ORIGIN_VAULT`.
 
 ```bash
 forge script script/DeployCreditcoin.s.sol \
-  --rpc-url $CREDITCOIN_RPC_URL --account bifrost --broadcast
+  --rpc-url $CREDITCOIN_RPC_URL --account bifrost --broadcast --gas-estimate-multiplier 200
 ```
 
-Reads `ORIGIN_VAULT` from the environment and fails fast if unset. Deploys `TestUSDC`,
-deploys the engine pointing at BlockProver `0x…0FD2`, and mints `POOL_LIQUIDITY` into the
-pool so borrowers have something to draw.
+Reads `ORIGIN_VAULT` from the environment and fails fast if unset. Deploys `TestUSDC`
+(or reuses `STABLECOIN`), deploys the engine pointing at BlockProver `0x…0FD2`, and
+deposits `POOL_LIQUIDITY` as the first LP so borrowers have something to draw.
+
+The gas multiplier matters on CC3: it charges more for storage writes than Foundry's local
+simulation assumes, and the seed `deposit` ran out of gas at the default estimate. If a
+step still fails, the earlier ones have landed; resend just that call with
+`cast send --gas-limit`.
 
 Record `CreditcoinPoolEngine` and `TestUSDC` into `docs/addresses.md`.
 

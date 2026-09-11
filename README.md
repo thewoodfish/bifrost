@@ -187,13 +187,13 @@ attestation frontier.
 
 ## Live deployment
 
-Deployed 2026-09-10. Full record in [`docs/addresses.md`](docs/addresses.md).
+Vault deployed 2026-09-10; pool redeployed 2026-09-11 with the lender side. Full record in [`docs/addresses.md`](docs/addresses.md).
 
 | Contract | Chain | Address |
 |---|---|---|
 | `RWAOriginVault` | Sepolia (11155111) | [`0x13F8630216EeF192ea74fc2AfA47Bd9edA372b7b`](https://sepolia.etherscan.io/address/0x13f8630216eef192ea74fc2afa47bd9eda372b7b#code) (verified) |
-| `CreditcoinPoolEngine` | Creditcoin CC3 (102031) | [`0x33280d3558B174563a1CDd6590640Dd1C7e41a32`](https://creditcoin-testnet.blockscout.com/address/0x33280d3558B174563a1CDd6590640Dd1C7e41a32) |
-| `TestUSDC` (pool: 10,000,000) | Creditcoin CC3 | [`0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B`](https://creditcoin-testnet.blockscout.com/address/0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B) |
+| `CreditcoinPoolEngine` | Creditcoin CC3 (102031) | [`0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8`](https://creditcoin-testnet.blockscout.com/address/0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8) |
+| `TestUSDC` (LP-supplied: 10,000,000) | Creditcoin CC3 | [`0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B`](https://creditcoin-testnet.blockscout.com/address/0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B) |
 | BlockProver / ChainInfo | Creditcoin CC3 | `0x…0FD2` / `0x…0FD3` (Attestcoin precompiles) |
 
 **Proven end to end on real proofs.** On the first deployment, portfolio 1042 was locked
