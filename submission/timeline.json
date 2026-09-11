@@ -1,0 +1,175 @@
+[
+  {
+    "id": "01-hook",
+    "title": "Landing hero: borrow against your loan book without moving it",
+    "at": 0.34
+  },
+  {
+    "beat": "cursor on the Attestcoin proof between the two chains",
+    "at": 10.99
+  },
+  {
+    "id": "02-live-metrics",
+    "title": "Live metrics and 0 bridges / 0 oracles / 0 multisigs / 1 proof",
+    "at": 15.59
+  },
+  {
+    "beat": "0 bridges \u00b7 0 oracles \u00b7 0 multisigs \u00b7 1 proof",
+    "at": 20.96
+  },
+  {
+    "id": "03-how-it-works",
+    "title": "How it works: escrow on Sepolia \u2192 Attestcoin proof \u2192 Creditcoin credit",
+    "at": 23.56
+  },
+  {
+    "beat": "step 1: escrow on Sepolia",
+    "at": 26.71
+  },
+  {
+    "beat": "step 2: Attestcoin proves it",
+    "at": 30.04
+  },
+  {
+    "beat": "step 3: funded on Creditcoin",
+    "at": 33.37
+  },
+  {
+    "id": "04-dashboard",
+    "title": "Borrower dashboard: portfolios found by wallet, offers ready to claim",
+    "at": 36.28
+  },
+  {
+    "beat": "sidebar: live Attestcoin lag from the ChainInfo precompile",
+    "at": 42.77
+  },
+  {
+    "id": "05-claim-preflight",
+    "title": "Portfolio 3001: proof fetched, verified by BlockProver, previewIngest \u2014 before signing",
+    "at": 46.57
+  },
+  {
+    "beat": "all three pre-flight checks green",
+    "at": 51.34
+  },
+  {
+    "beat": "hover Claim $400,000 (not clicked)",
+    "at": 56.34
+  },
+  {
+    "beat": "proof journey: Sepolia \u2192 Attestcoin \u2192 Creditcoin",
+    "at": 60.05
+  },
+  {
+    "id": "06-active-line",
+    "title": "Portfolio 2000 via \u2318K: a real line opened from the proof, interest accruing per second",
+    "at": 62.65
+  },
+  {
+    "beat": "\u2318K palette",
+    "at": 64.15
+  },
+  {
+    "beat": "principal + interest ticking at 8% APR",
+    "at": 68.5
+  },
+  {
+    "beat": "activity: line opened against the proof, drew, repaid, interest",
+    "at": 74.84
+  },
+  {
+    "id": "07-verify",
+    "title": "Verify it yourself: your browser re-runs the proof against live Creditcoin",
+    "at": 77.84
+  },
+  {
+    "beat": "all five verification steps green",
+    "at": 80.15
+  },
+  {
+    "beat": "proof fetched from the Attestcoin prover: height, Merkle path, continuity roots",
+    "at": 84.44
+  },
+  {
+    "beat": "receipt decoded in the browser: owner, portfolio, $300,000",
+    "at": 89.32
+  },
+  {
+    "beat": "BlockProver.verify() \u2192 true",
+    "at": 94.37
+  },
+  {
+    "beat": "receipt bound to the line, marked used on-chain",
+    "at": 98.82
+  },
+  {
+    "id": "08-forge",
+    "title": "Try to lie: forge the attested value \u2014 Creditcoin rejects it; the genuine value passes",
+    "at": 101.62
+  },
+  {
+    "beat": "typing a forged value: $3,000,000",
+    "at": 105.57
+  },
+  {
+    "beat": "REJECTED by Creditcoin: Merkle proof validation failed",
+    "at": 110.05
+  },
+  {
+    "beat": "genuine $300,000 accepted",
+    "at": 117.76
+  },
+  {
+    "id": "09-ledger-valuer",
+    "title": "Proof ledger: every position public and verifiable; independent valuation desk",
+    "at": 121.34
+  },
+  {
+    "beat": "ledger rows: every lock, every line, each with Verify",
+    "at": 124.55
+  },
+  {
+    "beat": "valuation desk: independent valuers, freshness tracked",
+    "at": 129.69
+  },
+  {
+    "id": "10-lend",
+    "title": "Lend: LPs earn what borrowers pay; 8% APR split 6% to LPs, 2% protocol \u2014 on-chain",
+    "at": 132.29
+  },
+  {
+    "beat": "split bar: LPs 6% \u00b7 protocol 2%",
+    "at": 138.65
+  },
+  {
+    "id": "11-code",
+    "title": "The contract: freshness and replay first, BlockProver.verifyAndEmit, collateral decoded from the proven receipt, bound to the claim",
+    "at": 142.25
+  },
+  {
+    "beat": "\u2460 freshness + replay checks",
+    "at": 146.65
+  },
+  {
+    "beat": "\u2461 blockProver.verifyAndEmit",
+    "at": 150.8
+  },
+  {
+    "beat": "\u2462 _decodeLock from the proven receipt",
+    "at": 155.44
+  },
+  {
+    "beat": "\u2463 claim bound to proof \u2192 80% credit",
+    "at": 159.51
+  },
+  {
+    "id": "12-close",
+    "title": "Close: your loan book is already collateral",
+    "at": 165.06
+  },
+  {
+    "id": "end",
+    "title": "end",
+    "at": 173.02
+  }
+]

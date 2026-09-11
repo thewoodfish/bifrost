@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 # Local env
 .env
+
+# Submission video media (large; regenerate with submission/tools)
+submission/*.mp4
+submission/clips/
