@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Bifrost — Pitch Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* Same tokens as app/src/styles.css: a spectrum on white, Sepolia indigo →
+   Attestcoin violet → Creditcoin amber, reserved for proofs moving between chains. */
+:root {
+  --bg: #f8f9fb;
+  --surface: #ffffff;
+  --surface-2: #f7f8fa;
+  --surface-3: #eef0f4;
+  --border: #e8e9ee;
+  --border-2: #dcdee5;
+  --text: #0d0f16;
+  --text-2: #4b5160;
+  --text-3: #7a8091;
+  --text-4: #a9aebb;
+  --ink: #0d0f16;
+  --sepolia: #5563f0;
+  --attest: #8457e8;
+  --credit: #e08e0b;
+  --spectrum: linear-gradient(90deg, #5563f0 0%, #9460f0 50%, #f29b12 100%);
+  --green: #0e8a5c; --green-bg: #e9f7f0; --green-bd: #bfe7d3;
+  --red: #c7362b;   --red-bg: #fdeeec;   --red-bd: #f6c9c4;
+  --violet: #6b42d8; --violet-bg: #f2ecfe; --violet-bd: #dccdfb;
+  --sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: "Geist Mono", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@page { size: 1920px 1080px; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #d9dbe2; }
+body { font-family: var(--sans); color: var(--text); -webkit-font-smoothing: antialiased; font-feature-settings: "ss01"; }
+
+.slide {
+  width: 1920px; height: 1080px;
+  position: relative; overflow: hidden;
+  background: var(--bg);
+  padding: 120px 128px 104px;
+  display: flex; flex-direction: column;
+  break-after: page;
+}
+.slide:last-child { break-after: auto; }
+@media screen { .slide { margin: 0 auto 40px; box-shadow: 0 20px 60px -30px rgba(0,0,0,.35); } }
+
+/* Soft spectrum light, drawn with gradients so the PDF keeps it vector. */
+.glow::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(900px 600px at 12% 0%, rgba(85, 99, 240, 0.11), transparent 70%),
+    radial-gradient(800px 560px at 55% -10%, rgba(148, 96, 240, 0.09), transparent 70%),
+    radial-gradient(900px 700px at 100% 30%, rgba(242, 155, 18, 0.10), transparent 70%);
+}
+.glow-low::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(1000px 520px at 0% 100%, rgba(85, 99, 240, 0.09), transparent 70%),
+    radial-gradient(1000px 520px at 100% 100%, rgba(242, 155, 18, 0.09), transparent 70%);
+}
+.grid-bg::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(16,20,34,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16,20,34,.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 20%, transparent 75%);
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, #000 20%, transparent 75%);
+}
+.slide > * { position: relative; z-index: 1; }
+
+/* Chrome */
+.chrome {
+  position: absolute; left: 128px; right: 128px; top: 52px; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 19px; color: var(--text-3);
+}
+.chrome .brand { display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--text); font-size: 21px; letter-spacing: -0.01em; }
+.chrome .num { font-family: var(--mono); font-size: 17px; color: var(--text-4); letter-spacing: 0.02em; }
+.dark .chrome .brand { color: #fff; }
+.dark .chrome .num { color: rgba(255,255,255,.35); }
+
+/* Type */
+.eyebrow {
+  font-size: 19px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--attest); margin-bottom: 26px;
+  display: inline-flex; align-items: center; gap: 12px;
+}
+.eyebrow::before { content: ""; width: 28px; height: 3px; border-radius: 2px; background: var(--spectrum); }
+h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.045em; }
+h1 { font-size: 132px; line-height: 0.96; }
+h2 { font-size: 76px; line-height: 1.02; letter-spacing: -0.042em; max-width: 1500px; }
+h3 { font-size: 30px; line-height: 1.2; letter-spacing: -0.02em; font-weight: 650; }
+.lede { font-size: 30px; line-height: 1.5; color: var(--text-2); letter-spacing: -0.005em; max-width: 1180px; margin: 30px 0 0; }
+p { margin: 0; }
+.spec {
+  background: var(--spectrum); -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+  padding-bottom: 0.08em;
+}
+.mono { font-family: var(--mono); letter-spacing: -0.01em; }
+.muted { color: var(--text-3); }
+.tab { font-variant-numeric: tabular-nums; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
+  box-shadow: 0 1px 2px rgba(16,20,34,.04), 0 12px 32px -18px rgba(16,20,34,.18);
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border-2); background: rgba(255,255,255,.8);
+  border-radius: 999px; padding: 8px 20px 8px 8px; font-size: 21px; color: var(--text-2);
+}
+.pill .live { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); border-radius: 999px; padding: 4px 14px; font-weight: 700; font-size: 16px; letter-spacing: 0.08em; }
+.chip { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 600; }
+.sq { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.c-sep { color: var(--sepolia); } .bg-sep { background: var(--sepolia); }
+.c-att { color: var(--attest); }  .bg-att { background: var(--attest); }
+.c-cre { color: var(--credit); }  .bg-cre { background: var(--credit); }
+
+.footer-note { margin-top: auto; font-size: 22px; color: var(--text-3); display: flex; align-items: center; gap: 14px; }
+
+/* ── 1 · Cover ─────────────────────────────────────────────────────────── */
+.cover { align-items: center; text-align: center; padding-top: 140px; }
+.cover h1 { font-size: 116px; margin-top: 40px; }
+.cover .lede { text-align: center; max-width: 1420px; margin-top: 32px; font-size: 28px; }
+.bridge-card { flex-shrink: 0; width: 1520px; margin-top: 56px; padding: 44px 64px 40px; display: grid; grid-template-columns: 1fr 560px 1fr; align-items: end; text-align: left; position: relative; overflow: hidden; }
+.bridge-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--spectrum); }
+.bridge-card .side-label { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.bridge-card .k { font-size: 21px; color: var(--text-3); }
+.bridge-card .v { font-size: 76px; font-weight: 700; letter-spacing: -0.045em; line-height: 1.05; margin: 6px 0 8px; }
+.bridge-card .s { font-size: 19px; color: var(--text-3); }
+.bridge-card .right { text-align: right; }
+.bridge-card .right .side-label { justify-content: flex-end; }
+.arc { position: relative; height: 200px; }
+.arc svg { position: absolute; left: 0; bottom: 36px; }
+.arc .proof-pill { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); white-space: nowrap; background: #fff; border: 1px solid var(--violet-bd); border-radius: 999px; padding: 10px 22px; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 24px -10px rgba(132,87,232,.45); }
+.cover-meta { margin-top: auto; padding-top: 32px; display: flex; gap: 56px; font-size: 21px; color: var(--text-3); }
+.cover-meta b { color: var(--text); font-weight: 600; }
+
+/* ── 2 · Problem ───────────────────────────────────────────────────────── */
+.problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; margin-top: 56px; align-items: stretch; flex: 1; }
+.chains { display: grid; grid-template-rows: auto auto auto; gap: 0; }
+.chainbox { padding: 30px 34px; }
+.chainbox .lbl { font-size: 18px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.chainbox .t { font-size: 32px; font-weight: 650; letter-spacing: -0.02em; }
+.chainbox .d { font-size: 21px; color: var(--text-3); margin-top: 6px; }
+.broken { display: flex; align-items: center; gap: 18px; padding: 22px 0 22px 34px; }
+.broken .rail { width: 3px; align-self: stretch; background: repeating-linear-gradient(to bottom, var(--red-bd) 0 10px, transparent 10px 18px); }
+.trust-nodes { display: flex; gap: 14px; flex-wrap: wrap; }
+.trust-node { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); border-radius: 12px; padding: 12px 20px; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.problem-points { display: flex; flex-direction: column; gap: 34px; justify-content: center; }
+.point { display: grid; grid-template-columns: 56px 1fr; gap: 20px; }
+.point .n { font-family: var(--mono); font-size: 20px; color: var(--text-4); padding-top: 6px; }
+.point h3 { margin-bottom: 8px; }
+.point p { font-size: 23px; line-height: 1.5; color: var(--text-2); }
+
+/* ── 3 · Insight (dark) ───────────────────────────────────────────────── */
+.dark { background: var(--ink); color: #fff; }
+.dark.glow::before {
+  background:
+    radial-gradient(900px 700px at 8% 10%, rgba(85, 99, 240, 0.30), transparent 70%),
+    radial-gradient(800px 600px at 55% 0%, rgba(148, 96, 240, 0.22), transparent 70%),
+    radial-gradient(900px 800px at 100% 90%, rgba(242, 155, 18, 0.20), transparent 70%);
+}
+.dark .eyebrow { color: #b9a6ff; }
+.insight { justify-content: center; }
+.insight h1 { font-size: 148px; line-height: 0.98; }
+.insight .lede { color: rgba(255,255,255,.66); max-width: 1300px; margin-top: 44px; }
+.counters { display: flex; gap: 0; margin-top: 88px; border-top: 1px solid rgba(255,255,255,.12); }
+.counter { flex: 1; padding: 36px 0 0; }
+.counter + .counter { padding-left: 44px; border-left: 1px solid rgba(255,255,255,.12); }
+.counter .big { display: inline-block; font-size: 112px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; }
+.counter .lbl { font-size: 24px; color: rgba(255,255,255,.55); margin-top: 12px; }
+.counter.one .big { background: var(--spectrum); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+.counter.one .lbl { color: #fff; font-weight: 600; }
+
+/* ── 4 · How it works ─────────────────────────────────────────────────── */
+.stepper { position: relative; margin-top: 76px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+.stepper .line { position: absolute; left: calc(16.66% - 8px); right: calc(16.66% - 8px); top: 36px; height: 4px; border-radius: 2px; background: var(--spectrum); z-index: 0; }
+.step { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.step .dot { width: 76px; height: 76px; border-radius: 50%; color: #fff; font-size: 30px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 10px var(--bg), 0 10px 24px -8px rgba(16,20,34,.35); }
+.step .chain { margin-top: 30px; font-size: 18px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.step h3 { font-size: 40px; margin-top: 10px; letter-spacing: -0.03em; }
+.step .card { margin-top: 30px; padding: 30px 32px; text-align: left; width: 100%; flex: 1; }
+.step ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 16px; }
+.step li { font-size: 22px; line-height: 1.45; color: var(--text-2); padding-left: 28px; position: relative; }
+.step li::before { content: ""; position: absolute; left: 0; top: 13px; width: 10px; height: 10px; border-radius: 3px; background: currentColor; opacity: .9; }
+.step.s1 li::before { background: var(--sepolia); } .step.s2 li::before { background: var(--attest); } .step.s3 li::before { background: var(--credit); }
+.step code { font-family: var(--mono); font-size: 19px; background: var(--surface-3); padding: 2px 8px; border-radius: 6px; color: var(--text); }
+
+/* ── 5 · USC integration ──────────────────────────────────────────────── */
+.usc-grid { display: grid; grid-template-columns: 1.08fr 1fr; gap: 36px; margin-top: 56px; flex: 1; }
+.usc-col { padding: 34px 38px; display: flex; flex-direction: column; }
+.usc-col .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.usc-col .head .t { font-size: 18px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.usc-col .head .where { font-family: var(--mono); font-size: 17px; color: var(--text-4); }
+.usc-row { padding: 18px 0; border-top: 1px solid var(--border); }
+.usc-row:first-of-type { border-top: 0; }
+.usc-row .fn { font-family: var(--mono); font-size: 21px; font-weight: 600; color: var(--violet); letter-spacing: -0.01em; }
+.usc-row .fn .addr { color: var(--text-4); font-weight: 400; }
+.usc-row p { font-size: 21px; line-height: 1.45; color: var(--text-2); margin-top: 6px; }
+.usc-row p b { color: var(--text); font-weight: 600; }
+.gate { display: inline-flex; margin-left: 10px; font-family: var(--sans); font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green); background: var(--green-bg); border: 1px solid var(--green-bd); border-radius: 999px; padding: 2px 10px; vertical-align: 3px; }
+
+/* ── 6 · Value from proof ─────────────────────────────────────────────── */
+.proof-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; margin-top: 56px; flex: 1; }
+.nest { padding: 30px 32px; font-family: var(--mono); }
+.nest .layer { border: 1.5px solid var(--border-2); border-radius: 16px; padding: 20px 22px 22px; background: var(--surface-2); }
+.nest .layer .cap { font-size: 16px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-family: var(--sans); color: var(--text-3); margin-bottom: 8px; }
+.nest .layer .sig { font-size: 19px; color: var(--text); line-height: 1.45; }
+.nest .layer .sig .k { color: var(--attest); }
+.nest .layer .layer { margin-top: 16px; background: #fff; }
+.nest .layer .layer .layer { background: var(--surface-2); border-color: var(--violet-bd); }
+.fields { margin-top: 14px; display: grid; grid-template-columns: 1fr; gap: 10px; }
+.field { display: grid; grid-template-columns: 210px 1fr; align-items: center; gap: 16px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 18px; }
+.field .name { color: var(--text); font-weight: 600; }
+.field .rule { font-family: var(--sans); color: var(--green); font-weight: 600; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.learned { display: flex; flex-direction: column; }
+.learned .t { font-size: 18px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+.learned .item { padding: 20px 0; border-top: 1px solid var(--border); }
+.learned .item:first-of-type { border-top: 0; }
+.learned .item h3 { font-size: 25px; }
+.learned .item p { font-size: 20px; line-height: 1.45; color: var(--text-2); margin-top: 6px; }
+.learned code, .usc-row code { font-family: var(--mono); font-size: .92em; background: var(--surface-3); padding: 1px 7px; border-radius: 6px; color: var(--text); }
+
+/* ── 7 · Security ─────────────────────────────────────────────────────── */
+.attacks { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-top: 56px; }
+.attack { padding: 26px 24px 24px; display: flex; flex-direction: column; min-height: 272px; }
+.attack .x { width: 34px; height: 34px; border-radius: 9px; background: var(--red-bg); border: 1px solid var(--red-bd); color: var(--red); display: grid; place-items: center; font-weight: 700; font-size: 18px; margin-bottom: 18px; }
+.attack h3 { font-size: 24px; line-height: 1.22; }
+.attack p { font-size: 18px; line-height: 1.45; color: var(--text-2); margin-top: 10px; }
+.attack .rev { margin-top: auto; padding-top: 16px; font-family: var(--mono); font-size: 16px; color: var(--red); font-weight: 500; word-break: break-all; }
+
+/* ── 8 · Forge ────────────────────────────────────────────────────────── */
+.shot { border-radius: 20px; overflow: hidden; border: 1px solid var(--border-2); box-shadow: 0 30px 70px -34px rgba(16,20,34,.45), 0 0 0 1px rgba(16,20,34,.02); background: #fff; }
+.shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.forge-wrap { margin-top: 44px; display: flex; flex-direction: column; gap: 28px; }
+.forge-wrap .shot { width: 100%; }
+.forge .lede { max-width: 1500px; }
+.checks { display: flex; gap: 12px; flex-wrap: nowrap; }
+.check { display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 10px 20px 10px 12px; font-size: 19px; color: var(--text-2); }
+.check .ok { width: 28px; height: 28px; border-radius: 50%; background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); display: grid; place-items: center; font-size: 15px; font-weight: 800; }
+.check .n { font-family: var(--mono); font-size: 16px; color: var(--text-4); }
+
+/* ── 9 · Product ──────────────────────────────────────────────────────── */
+.product { display: grid; grid-template-columns: 1086px 1fr; gap: 36px; margin-top: 48px; flex: 1; min-height: 0; }
+.product .big { display: flex; flex-direction: column; }
+.product .stack { display: flex; flex-direction: column; gap: 28px; }
+.product .shot.lg { height: 640px; }
+.product .shot.sm { height: 300px; position: relative; }
+.shot.crop img { position: absolute; max-width: none; height: auto; }
+.cap2 { font-size: 20px; color: var(--text-2); margin-top: 14px; line-height: 1.4; }
+.cap2 b { color: var(--text); font-weight: 650; }
+.product .item { display: flex; flex-direction: column; }
+.product .stack .cap2 { margin-top: 10px; }
+
+/* ── 10 · Proven ──────────────────────────────────────────────────────── */
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 60px; padding: 40px 0 38px; position: relative; }
+.flow-cell { padding: 0 40px; position: relative; }
+.flow-cell + .flow-cell { border-left: 1px solid var(--border); }
+.flow-cell .k { font-size: 19px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+.flow-cell .v { font-size: 84px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; margin: 18px 0 12px; }
+.flow-cell .s { font-size: 20px; color: var(--text-3); line-height: 1.4; }
+.flow::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; border-radius: 22px 22px 0 0; background: var(--spectrum); }
+.proven-low { display: grid; grid-template-columns: 1fr 1.28fr; gap: 36px; margin-top: 36px; flex: 1; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.stat { padding: 26px 28px; }
+.stat .v { font-size: 56px; font-weight: 700; letter-spacing: -0.045em; line-height: 1; }
+.stat .s { font-size: 19px; color: var(--text-3); margin-top: 10px; line-height: 1.35; }
+.addr-table { padding: 16px 30px; }
+.addr-row { display: grid; grid-template-columns: 250px 210px 1fr; align-items: center; gap: 16px; padding: 16px 0; border-top: 1px solid var(--border); font-size: 20px; }
+.addr-row:first-child { border-top: 0; }
+.addr-row .name { font-weight: 650; }
+.addr-row .chain { color: var(--text-3); font-size: 18px; }
+.addr-row .a { font-family: var(--mono); font-size: 17px; color: var(--text-2); }
+.addr-row .vf { font-family: var(--sans); color: var(--green); font-weight: 600; font-size: 16px; margin-left: 6px; }
+
+/* ── 11 · Compare ─────────────────────────────────────────────────────── */
+.compare { margin-top: 64px; display: grid; grid-template-columns: 300px 1fr 1fr 1.32fr; align-items: stretch; }
+.compare .h { font-size: 22px; font-weight: 650; color: var(--text-3); padding: 0 32px 22px; display: flex; align-items: flex-end; }
+.compare .cell { font-size: 27px; padding: 36px 32px; border-top: 1px solid var(--border-2); color: var(--text-2); line-height: 1.3; display: flex; align-items: center; }
+.compare .rh { font-size: 20px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); padding-left: 0; }
+.compare .us { background: #fff; color: var(--text); font-weight: 650; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+.compare .h.us { padding-top: 34px; position: relative; overflow: hidden; border-top: 1px solid var(--border); border-radius: 20px 20px 0 0; color: var(--text); font-size: 26px; font-weight: 700; align-items: center; }
+.compare .h.us::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--spectrum); }
+.compare .us.last { border-bottom: 1px solid var(--border); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; box-shadow: 0 30px 40px -34px rgba(16,20,34,.3); }
+.compare .h.us .logo-mini { margin-right: 12px; }
+
+/* ── 12 · Business ────────────────────────────────────────────────────── */
+.biz { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; margin-top: 56px; flex: 1; }
+.rate { padding: 36px 40px; display: flex; flex-direction: column; }
+.rate .t { font-size: 18px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); display: flex; justify-content: space-between; }
+.rate .t .live { color: var(--green); }
+.rate .apr { font-size: 104px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; margin-top: 24px; }
+.rate .apr small { font-size: 30px; color: var(--text-3); font-weight: 500; letter-spacing: -0.01em; margin-left: 12px; }
+.split { display: flex; height: 22px; border-radius: 11px; overflow: hidden; margin-top: 30px; }
+.split .lp { flex: 3; background: linear-gradient(90deg, #5563f0, #9460f0); }
+.split .pr { flex: 1; background: #f29b12; }
+.split-legend { display: flex; justify-content: space-between; margin-top: 16px; font-size: 21px; color: var(--text-2); }
+.split-legend b { color: var(--text); }
+.planned { margin-top: auto; padding-top: 28px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.planned .p .k { font-size: 16px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-4); }
+.planned .p .v { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; margin-top: 8px; }
+.planned .p .s { font-size: 19px; color: var(--text-3); margin-top: 6px; line-height: 1.4; }
+.gtm { display: flex; flex-direction: column; gap: 20px; }
+.gtm .card { padding: 28px 32px; }
+.gtm .k { font-size: 17px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+.gtm h3 { font-size: 28px; margin-top: 10px; }
+.gtm p { font-size: 20px; color: var(--text-2); line-height: 1.45; margin-top: 6px; }
+
+/* ── 13 · Roadmap ─────────────────────────────────────────────────────── */
+.road { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 56px; }
+.road .card { padding: 34px 32px 34px; display: flex; flex-direction: column; min-height: 500px; position: relative; overflow: hidden; }
+.road .card.first::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--spectrum); }
+.road .n { font-family: var(--mono); font-size: 18px; color: var(--text-4); }
+.road h3 { font-size: 30px; margin-top: 18px; }
+.road p { font-size: 22px; color: var(--text-2); line-height: 1.5; margin-top: 12px; }
+.road .tag { margin-top: auto; padding-top: 20px; font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.road .tag span { border-radius: 999px; padding: 6px 14px; }
+.tag .now { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+.tag .usc { background: var(--violet-bg); color: var(--violet); border: 1px solid var(--violet-bd); }
+.tag .eng { background: var(--surface-3); color: var(--text-2); border: 1px solid var(--border-2); }
+.gaps { margin-top: auto; display: flex; align-items: center; gap: 22px; font-size: 20px; color: var(--text-3); flex-wrap: wrap; }
+.gaps b { color: var(--text-2); font-weight: 650; }
+.gaps .g { display: inline-flex; align-items: center; gap: 10px; }
+.gaps .g::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text-4); }
+
+/* ── 14 · Close ───────────────────────────────────────────────────────── */
+.close { align-items: center; justify-content: center; text-align: center; }
+.close h1 { font-size: 112px; margin-top: 52px; }
+.links { display: flex; gap: 22px; margin-top: 72px; }
+.link { padding: 26px 34px; text-align: left; min-width: 420px; }
+.link .k { font-size: 16px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.link .v { font-size: 25px; font-weight: 600; margin-top: 10px; letter-spacing: -0.01em; }
+.link .v.mono { font-size: 21px; }
+</style>
+</head>
+<body>
+
+<!-- Logo, inline so the PDF never waits on a request -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="logo" viewBox="0 0 32 32">
+      <rect width="32" height="32" rx="9" fill="#10121A" />
+      <path d="M6.5 22.5a9.5 9.5 0 0 1 19 0" fill="none" stroke="#7382FF" stroke-width="2.6" stroke-linecap="round" />
+      <path d="M10.5 22.5a5.5 5.5 0 0 1 11 0" fill="none" stroke="#B48CFF" stroke-width="2.6" stroke-linecap="round" />
+      <path d="M14.4 22.5a1.6 1.6 0 0 1 3.2 0" fill="none" stroke="#FFB547" stroke-width="2.6" stroke-linecap="round" />
+    </symbol>
+    <linearGradient id="spec" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#5563f0" /><stop offset=".5" stop-color="#9460f0" /><stop offset="1" stop-color="#f29b12" />
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- 1 · Cover -->
+<section class="slide cover glow grid-bg">
+  <div class="pill"><span class="live">LIVE</span> Sepolia → Creditcoin testnet, verified by Attestcoin (Creditcoin USC)</div>
+  <h1>Borrow against your loan book.<br /><span class="spec">Without moving it.</span></h1>
+  <p class="lede">Bifrost turns a tokenized loan portfolio into a stablecoin credit line in about fifteen minutes. The portfolio stays escrowed on its home chain; Creditcoin lends against a cryptographic proof of the lock.</p>
+
+  <div class="card bridge-card">
+    <div>
+      <div class="side-label c-sep"><span class="sq bg-sep"></span><span style="color:var(--text)">Sepolia</span></div>
+      <div class="k">Collateral escrowed</div>
+      <div class="v tab">$300,000</div>
+      <div class="s">Block #11,675,618 · never leaves Sepolia</div>
+    </div>
+    <div class="arc">
+      <svg width="560" height="150" viewBox="0 0 560 150" fill="none">
+        <path d="M14 146 C 120 -20, 440 -20, 546 146" stroke="url(#spec)" stroke-width="4" stroke-dasharray="14 10" stroke-linecap="round" />
+        <circle cx="128" cy="52" r="11" fill="#fff" stroke="#5f6ef2" stroke-width="4" />
+      </svg>
+      <div class="proof-pill"><span class="sq bg-att" style="border-radius:50%"></span>Attestcoin proof</div>
+    </div>
+    <div class="right">
+      <div class="side-label"><span class="sq bg-cre"></span>Creditcoin</div>
+      <div class="k">Credit line opened</div>
+      <div class="v tab"><span class="spec" style="background:linear-gradient(90deg,#0d0f16 0%,#0d0f16 35%,#e08e0b 100%);-webkit-background-clip:text;background-clip:text">$240,000</span></div>
+      <div class="s">80% of attested value · USDC</div>
+    </div>
+  </div>
+
+  <div class="cover-meta">
+    <span data-href="https://youtu.be/ufsz9Mp4Bbw"><b>Demo</b> youtu.be/ufsz9Mp4Bbw</span>
+    <span data-href="https://github.com/thewoodfish/bifrost"><b>Code</b> github.com/thewoodfish/bifrost</span>
+    <span><b>Live on</b> Sepolia + Creditcoin CC3 testnet</span>
+  </div>
+  <div class="chrome" style="top:52px">
+    <div class="brand"><svg width="36" height="36"><use href="#logo" /></svg>Bifrost</div>
+    <div class="num">Cross-chain private credit</div>
+  </div>
+</section>
+
+<!-- 2 · Problem -->
+<section class="slide glow-low">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">02 / 14</div></div>
+  <div class="eyebrow">The problem</div>
+  <h2>The loan books live on one chain.<br />The capital lives on another.</h2>
+
+  <div class="problem-grid">
+    <div class="chains">
+      <div class="card chainbox">
+        <div class="lbl c-sep"><span class="sq bg-sep"></span>Compliance chains</div>
+        <div class="t">Tokenized, audited loan books</div>
+        <div class="d">Microfinance funds and invoice factors stay where their KYC and audit stack lives.</div>
+      </div>
+      <div class="broken">
+        <div class="rail"></div>
+        <div>
+          <div style="font-size:20px;color:var(--text-3);margin-bottom:14px">The only way across today is a bridge, which adds</div>
+          <div class="trust-nodes">
+            <span class="trust-node">✕ a multisig</span>
+            <span class="trust-node">✕ an oracle</span>
+            <span class="trust-node">✕ a custodian</span>
+          </div>
+        </div>
+      </div>
+      <div class="card chainbox">
+        <div class="lbl c-cre"><span class="sq bg-cre"></span>Creditcoin L1</div>
+        <div class="t">Deep stablecoin liquidity</div>
+        <div class="d">Credit registries and yield-seeking lenders who want real-world yield.</div>
+      </div>
+    </div>
+
+    <div class="problem-points">
+      <div class="point"><div class="n">01</div><div>
+        <h3>Institutions won't bridge the asset</h3>
+        <p>Wrapping a multi-million-dollar portfolio puts a bridge operator and an oracle in the trust path. That is exactly what institutional risk officers refuse to sign off on.</p>
+      </div></div>
+      <div class="point"><div class="n">02</div><div>
+        <h3>Off-chain credit is slow</h3>
+        <p>A traditional private credit facility takes 3–6 months of legal paperwork before a single dollar moves.</p>
+      </div></div>
+      <div class="point"><div class="n">03</div><div>
+        <h3>So the liquidity stays stranded</h3>
+        <p>Lenders with good collateral can't reach the capital, and capital looking for real yield can't reach them.</p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · Insight -->
+<section class="slide dark glow insight">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">03 / 14</div></div>
+  <div class="eyebrow">The insight</div>
+  <h1>Don't move the asset.<br /><span class="spec">Move a proof about it.</span></h1>
+  <p class="lede">The portfolio stays locked in escrow on its home chain. Attestcoin attests the lock, and Creditcoin verifies that proof on-chain before it lends a dollar. Nothing else sits in the trust path.</p>
+  <div class="counters">
+    <div class="counter"><div class="big">0</div><div class="lbl">bridges</div></div>
+    <div class="counter"><div class="big">0</div><div class="lbl">oracles</div></div>
+    <div class="counter"><div class="big">0</div><div class="lbl">multisigs</div></div>
+    <div class="counter one"><div class="big">1</div><div class="lbl">proof anyone can check</div></div>
+  </div>
+</section>
+
+<!-- 4 · How it works -->
+<section class="slide glow">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">04 / 14</div></div>
+  <div class="eyebrow">How it works</div>
+  <h2>Lock. Attest. Lend.</h2>
+
+  <div class="stepper">
+    <div class="line"></div>
+    <div class="step s1">
+      <div class="dot bg-sep">1</div>
+      <div class="chain c-sep">Sepolia</div>
+      <h3>Lock on the home chain</h3>
+      <div class="card"><ul>
+        <li>An originator registers the portfolio in <code>RWAOriginVault</code>.</li>
+        <li>An <b>independent valuer</b> prices it. The originator can't price its own collateral.</li>
+        <li>The owner locks it against a valuation no older than 7 days, emitting <code>PortfolioLocked</code>.</li>
+      </ul></div>
+    </div>
+    <div class="step s2">
+      <div class="dot bg-att">2</div>
+      <div class="chain c-att">Attestcoin · USC</div>
+      <h3>Attest the block</h3>
+      <div class="card"><ul>
+        <li>USC validators attest the Sepolia block containing the lock, in 8–20 minutes.</li>
+        <li>The prover serves a <b>Merkle inclusion proof</b> for the transaction.</li>
+        <li>Plus a <b>continuity proof</b> chaining the block to the attested checkpoint.</li>
+      </ul></div>
+    </div>
+    <div class="step s3">
+      <div class="dot bg-cre">3</div>
+      <div class="chain c-cre">Creditcoin</div>
+      <h3>Verify and lend</h3>
+      <div class="card"><ul>
+        <li>The pool engine hands the proof to the <code>BlockProver</code> precompile.</li>
+        <li>It decodes the lock event from the proven receipt and checks every field.</li>
+        <li>It opens a USDC credit line at <b>80% of the attested value</b>. Draw and repay any time.</li>
+      </ul></div>
+    </div>
+  </div>
+  <div class="footer-note"><span class="sq" style="background:var(--spectrum);width:40px;height:4px;border-radius:2px"></span>About 15 minutes from lock to funds. The collateral never leaves Sepolia.</div>
+</section>
+
+<!-- 5 · USC integration -->
+<section class="slide">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">05 / 14</div></div>
+  <div class="eyebrow">USC integration</div>
+  <h2>USC isn't a feature here.<br /><span class="spec">It's the credit decision.</span></h2>
+
+  <div class="usc-grid">
+    <div class="card usc-col">
+      <div class="head"><span class="t">On-chain · in every credit decision</span><span class="where">CreditcoinPoolEngine</span></div>
+      <div class="usc-row">
+        <div class="fn">BlockProver.verifyAndEmit <span class="addr">0x…0FD2</span><span class="gate">Gate</span></div>
+        <p>Called inside <code>attestAndOpenCredit</code>. <b>If it doesn't return true, no money moves.</b></p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">ChainInfo.get_latest_attestation_height_and_hash <span class="addr">0x…0FD3</span></div>
+        <p>Lock freshness enforced on-chain: a lock more than 7,200 blocks behind the attestation frontier is rejected.</p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">BlockProver.verify</div>
+        <p>A free dry run of the whole claim (<code>previewIngest</code>) before the borrower signs, so a bad claim never burns a single-use receipt.</p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">encodedTransaction → receipt</div>
+        <p>Decoded on-chain. Owner, value and valuation round come from the proof, and the receipt hash is consumed on first use.</p>
+      </div>
+    </div>
+
+    <div class="card usc-col">
+      <div class="head"><span class="t">Off-chain · SDK and browser</span><span class="where">no backend</span></div>
+      <div class="usc-row">
+        <div class="fn">@gluwa/usc-sdk · ProofBuilder</div>
+        <p>The CLI fetches proofs through the SDK, retrying the prover's 422 right after attestation lands.</p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">Prover API · proof-by-tx</div>
+        <p>The portal calls the prover straight from the browser, then re-verifies any position live.</p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">ChainInfo.is_height_attested</div>
+        <p>The signal to start proving. The claim button waits on it, not on a timer.</p>
+      </div>
+      <div class="usc-row">
+        <div class="fn">ChainInfo.get_supported_chains</div>
+        <p>Read live, and the reason the origin chain is Sepolia. The attestation lag drives every ETA in the app.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · Value from proof -->
+<section class="slide">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">06 / 14</div></div>
+  <div class="eyebrow">What the proof binds</div>
+  <h2>The value comes from the proof.<br />Never from the borrower.</h2>
+
+  <div class="proof-grid">
+    <div class="card nest">
+      <div class="layer">
+        <div class="cap">encodedTransaction · proven by BlockProver</div>
+        <div class="sig">abi.encode(<span class="k">uint8</span> txType, <span class="k">bytes[]</span> chunks)</div>
+        <div class="layer">
+          <div class="cap">Last chunk · the receipt</div>
+          <div class="sig">(<span class="k">uint8</span> status, <span class="k">uint64</span> gasUsed, logs[], logsBloom)</div>
+          <div class="layer">
+            <div class="cap" style="color:var(--violet)">PortfolioLocked · emitted by our vault only</div>
+            <div class="fields">
+              <div class="field"><span class="name">status</span><span class="rule">✓ must be 1, or the lock reverted</span></div>
+              <div class="field"><span class="name">owner</span><span class="rule">✓ must be the borrower and msg.sender</span></div>
+              <div class="field"><span class="name">dollarValue</span><span class="rule">✓ sets the credit limit (× 80%)</span></div>
+              <div class="field"><span class="name">valuationRound</span><span class="rule">✓ must match the claim</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="learned">
+      <div class="t">Learned from the live network, not the docs</div>
+      <div class="item"><h3>It's an ABI envelope, not receipt RLP</h3><p>Wrong decoders pass their own fixtures and fail only on real proofs. Ours takes the last chunk, so it works for every transaction type.</p></div>
+      <div class="item"><h3>Struct field order is load-bearing</h3><p>Confirmed with differential calls: a transposed <code>MerkleProof</code> returns <code>Unknown selector</code>.</p></div>
+      <div class="item"><h3>ChainInfo is snake_case</h3><p>A camelCase call looks exactly like a missing precompile.</p></div>
+      <div class="item"><h3>Reverted transactions are still attestable</h3><p>So the engine checks receipt status before it lends.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · Security -->
+<section class="slide glow-low">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">07 / 14</div></div>
+  <div class="eyebrow">Security model</div>
+  <h2>Try to break it.</h2>
+  <p class="lede">Every attack we could think of, and the on-chain check that stops it.</p>
+
+  <div class="attacks">
+    <div class="card attack"><div class="x">✕</div><h3>Inflate the collateral value</h3><p>The value is decoded from the verified receipt, not the claim.</p><div class="rev">ClaimDoesNotMatchProof</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Forge or tamper with the receipt</h3><p>The precompile checks the Merkle and continuity proofs.</p><div class="rev">ProofRejected</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Price your own collateral</h3><p>Originator and valuer are separate vault roles.</p><div class="rev">NotValuer</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Lock against an old valuation</h3><p>Valuations expire after 7 days.</p><div class="rev">StaleValuation</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Sit on a proof, borrow later</h3><p>The lock is aged against the ChainInfo frontier.</p><div class="rev">LockTooOld</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Reuse a receipt</h3><p>Its hash is consumed on first use.</p><div class="rev">ReceiptAlreadyUsed</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Use a reverted lock transaction</h3><p>The receipt status must be 1.</p><div class="rev">SourceTxFailed</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Claim someone else's lock</h3><p>The borrower must be the sender and the proven owner.</p><div class="rev">BorrowerMismatch</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Emit from a look-alike contract</h3><p>Only the configured vault's log counts.</p><div class="rev">LockLogNotFound</div></div>
+    <div class="card attack"><div class="x">✕</div><h3>Bring a proof from another chain</h3><p>The chain key is pinned at deploy.</p><div class="rev">BadChainKey</div></div>
+  </div>
+</section>
+
+<!-- 8 · Forge -->
+<section class="slide glow forge">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">08 / 14</div></div>
+  <div class="eyebrow">Don't trust us</div>
+  <h2>Forge a receipt. <span class="spec">Creditcoin says no.</span></h2>
+  <p class="lede">Every position has a verify page. Your browser fetches the proof, decodes the receipt and asks the precompile itself. Then it rewrites the dollar value, leaving every other byte untouched.</p>
+
+  <div class="forge-wrap">
+    <div class="checks">
+      <span class="check"><span class="ok">✓</span><span class="n">1</span>Lock on Sepolia</span>
+      <span class="check"><span class="ok">✓</span><span class="n">2</span>Proof fetched</span>
+      <span class="check"><span class="ok">✓</span><span class="n">3</span>Receipt decoded</span>
+      <span class="check"><span class="ok">✓</span><span class="n">4</span>BlockProver.verify → true</span>
+      <span class="check"><span class="ok">✓</span><span class="n">5</span>Receipt unspent</span>
+      <span class="check" style="border-color:var(--red-bd);background:var(--red-bg);color:var(--red)"><span class="ok" style="background:#fff;color:var(--red);border-color:var(--red-bd)">✕</span>Forged value → rejected</span>
+    </div>
+    <div class="shot"><img src="../../docs/screenshots/forge.png" alt="Forged receipt claiming $7,500,000 rejected by Creditcoin" /></div>
+  </div>
+</section>
+
+<!-- 9 · Product -->
+<section class="slide">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">09 / 14</div></div>
+  <div class="eyebrow">The product</div>
+  <h2>A complete portal. No backend.</h2>
+
+  <div class="product">
+    <div class="item">
+      <div class="shot lg"><img src="../../docs/screenshots/line.png" alt="Active credit line for portfolio 2000" /></div>
+      <div class="cap2"><b>Active line.</b> Portfolio 2000's real line: interest ticking per second at 8% APR, draw and repay, every step traced back to its chain.</div>
+    </div>
+    <div class="stack">
+      <div class="item">
+        <div class="shot sm crop"><img style="width:1010px;left:-194px;top:-182px" src="../../docs/screenshots/claim.png" alt="Claim with pre-flight checks" /></div>
+        <div class="cap2"><b>Claim.</b> Proof fetched and dry-run before you sign.</div>
+      </div>
+      <div class="item">
+        <div class="shot sm crop"><img style="width:888px;left:-150px;top:-40px" src="../../docs/screenshots/verify.png" alt="In-browser proof verification" /></div>
+        <div class="cap2"><b>Verify.</b> Anyone re-runs the proof in the browser.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · Proven -->
+<section class="slide glow-low">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">10 / 14</div></div>
+  <div class="eyebrow">Traction on testnet</div>
+  <h2>Running on live USC proofs today.</h2>
+
+  <div class="card flow">
+    <div class="flow-cell"><div class="k c-sep"><span class="sq bg-sep"></span>Locked · Sepolia</div><div class="v tab">$300k</div><div class="s">Portfolio 2000, valued by an independent valuer</div></div>
+    <div class="flow-cell"><div class="k c-att"><span class="sq bg-att"></span>Proven · USC</div><div class="v tab">$240k</div><div class="s">Credit line opened from the attested receipt</div></div>
+    <div class="flow-cell"><div class="k c-cre"><span class="sq bg-cre"></span>Drawn · Creditcoin</div><div class="v tab">$100k</div><div class="s">USDC drawn from the pool from a real wallet</div></div>
+    <div class="flow-cell"><div class="k" style="color:var(--green)"><span class="sq" style="background:var(--green)"></span>Repaid</div><div class="v tab">$25k</div><div class="s">Interest paid first, then principal</div></div>
+  </div>
+
+  <div class="proven-low">
+    <div class="stats">
+      <div class="card stat"><div class="v tab">78</div><div class="s">contract tests, incl. a real attested Sepolia receipt</div></div>
+      <div class="card stat"><div class="v tab">38</div><div class="s">portal tests, fixtures from the live prover</div></div>
+      <div class="card stat"><div class="v tab">10M</div><div class="s">test USDC supplied by lenders for pool shares</div></div>
+      <div class="card stat"><div class="v">0</div><div class="s">replays accepted: a reused receipt was rejected on-chain</div></div>
+    </div>
+    <div class="card addr-table">
+      <div class="addr-row"><span class="name">RWAOriginVault</span><span class="chain">Sepolia <span class="vf">✓ verified</span></span><span class="a" data-href="https://sepolia.etherscan.io/address/0x13f8630216eef192ea74fc2afa47bd9eda372b7b#code">0x13F8630216EeF192ea74fc2AfA47Bd9edA372b7b</span></div>
+      <div class="addr-row"><span class="name">CreditcoinPoolEngine</span><span class="chain">CC3 testnet</span><span class="a" data-href="https://creditcoin-testnet.blockscout.com/address/0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8">0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8</span></div>
+      <div class="addr-row"><span class="name">BlockProver</span><span class="chain">CC3 testnet</span><span class="a">0x0000000000000000000000000000000000000FD2</span></div>
+      <div class="addr-row"><span class="name">ChainInfo</span><span class="chain">CC3 testnet</span><span class="a">0x0000000000000000000000000000000000000FD3</span></div>
+      <div class="addr-row"><span class="name">TestUSDC</span><span class="chain">CC3 testnet</span><span class="a">0x6C1e351d926E45Bf88CbdA0412C8831E40AF865B</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · Compare -->
+<section class="slide glow">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">11 / 14</div></div>
+  <div class="eyebrow">Why it wins</div>
+  <h2>Minutes, not months.<br />Proofs, not promises.</h2>
+
+  <div class="compare">
+    <div class="h"></div>
+    <div class="h">Traditional private credit</div>
+    <div class="h">Bridged DeFi lending</div>
+    <div class="h us"><svg class="logo-mini" width="32" height="32"><use href="#logo" /></svg>Bifrost</div>
+
+    <div class="cell rh">Time to funds</div>
+    <div class="cell">3–6 months</div>
+    <div class="cell">Minutes</div>
+    <div class="cell us">~15 minutes</div>
+
+    <div class="cell rh">Collateral leaves its chain</div>
+    <div class="cell">No, it's on paper</div>
+    <div class="cell">Yes, wrapped</div>
+    <div class="cell us">Never</div>
+
+    <div class="cell rh">What you trust</div>
+    <div class="cell">Lawyers and custodians</div>
+    <div class="cell">A bridge multisig</div>
+    <div class="cell us">A proof anyone can check</div>
+
+    <div class="cell rh">Who prices collateral</div>
+    <div class="cell">The lender</div>
+    <div class="cell">A price oracle</div>
+    <div class="cell us last">An independent valuer, on-chain</div>
+  </div>
+</section>
+
+<!-- 12 · Business -->
+<section class="slide">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">12 / 14</div></div>
+  <div class="eyebrow">Business model</div>
+  <h2>Asset-light middleware.</h2>
+  <p class="lede" style="max-width:1500px">Bifrost builds the contracts and the verification pipeline. It never lends its own balance sheet.</p>
+
+  <div class="biz">
+    <div class="card rate">
+      <div class="t"><span>Rate spread</span><span class="live">● Live on-chain</span></div>
+      <div class="apr">8%<small>APR paid by borrowers on drawn credit</small></div>
+      <div class="split"><div class="lp"></div><div class="pr"></div></div>
+      <div class="split-legend"><span><b>~6%</b> to lenders, as pool shares grow</span><span><b>~2%</b> protocol reserve (25%)</span></div>
+      <p style="font-size:20px;color:var(--text-3);line-height:1.45;margin-top:22px">At full utilization. The pool engine applies the split on every repayment: interest is paid first, and 25% of it goes to protocol reserves.</p>
+      <div class="planned">
+        <div class="p"><div class="k">Planned</div><div class="v">Origination fee</div><div class="s">0.25–0.50% of line value. A $10M line earns $25–50k.</div></div>
+        <div class="p"><div class="k">Planned</div><div class="v">Attestation fees</div><div class="s">Per cross-chain message, shared with validator incentives.</div></div>
+      </div>
+    </div>
+    <div class="gtm">
+      <div class="card"><div class="k c-sep"><span class="sq bg-sep"></span>Supply</div><h3>RWA tokenization platforms</h3><p>Plume, Centrifuge and Goldfinch already have compliant originators who want cheaper liquidity.</p></div>
+      <div class="card"><div class="k c-cre"><span class="sq bg-cre"></span>Demand</div><h3>Creditcoin capital seeking real yield</h3><p>Gluwa and the Creditcoin ecosystem route stablecoins into lending backed by real-world loans.</p></div>
+      <div class="card"><div class="k c-att"><span class="sq bg-att"></span>For Creditcoin</div><h3>Every lock is on-chain activity</h3><p>Each lock, attestation and draw uses Creditcoin, and it pulls in RWA liquidity stranded on other chains.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 · Roadmap -->
+<section class="slide glow-low">
+  <div class="chrome"><div class="brand"><svg width="30" height="30"><use href="#logo" /></svg>Bifrost</div><div class="num">13 / 14</div></div>
+  <div class="eyebrow">What's next</div>
+  <h2>Each step takes USC deeper.</h2>
+
+  <div class="road">
+    <div class="card first"><div class="n">01</div><h3>Re-attested valuations</h3><p>A valuer revalues a locked portfolio, USC proves it to the engine, and the engine shrinks the limit or halts draws. The proof goes from a one-time gate to continuous collateral monitoring.</p><div class="tag"><span class="now">Buildable on today's USC</span></div></div>
+    <div class="card"><div class="n">02</div><h3>Many origin chains</h3><p>A vault on each chain and an engine that accepts a set of (chainKey, vault) pairs. Ethereum mainnet is already attested; more follow as USC adds them.</p><div class="tag"><span class="now">Mainnet ready</span></div></div>
+    <div class="card"><div class="n">03</div><h3>Proven settlement back</h3><p>The vault releases escrow on a proof that the line was repaid, removing the last admin key from the lifecycle.</p><div class="tag"><span class="usc">Needs return-path USC</span></div></div>
+    <div class="card"><div class="n">04</div><h3>Pricing and liquidity</h3><p>Utilization-based rates, liquidity reserved for undrawn credit, and the origination fee, on top of the pool shares and reserve already live.</p><div class="tag"><span class="eng">Engine upgrade</span></div></div>
+  </div>
+
+  <div class="gaps"><b>Known gaps, stated plainly:</b>
+    <span class="g">No liquidation yet</span>
+    <span class="g">Undrawn credit isn't reserved</span>
+    <span class="g">Escrow release is admin-gated</span>
+    <span class="g">Unaudited</span>
+  </div>
+</section>
+
+<!-- 14 · Close -->
+<section class="slide close glow grid-bg">
+  <svg width="120" height="120"><use href="#logo" /></svg>
+  <h1>Borrow against your loan book.<br /><span class="spec">Without moving it.</span></h1>
+  <div class="links">
+    <div class="card link" data-href="https://youtu.be/ufsz9Mp4Bbw"><div class="k">Watch the demo</div><div class="v mono">youtu.be/ufsz9Mp4Bbw</div></div>
+    <div class="card link" data-href="https://github.com/thewoodfish/bifrost"><div class="k">Read the code</div><div class="v mono">github.com/thewoodfish/bifrost</div></div>
+    <div class="card link"><div class="k">Built on</div><div class="v">Creditcoin USC · Attestcoin</div></div>
+  </div>
+</section>
+
+</body>
+</html>
