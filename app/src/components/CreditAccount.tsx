@@ -112,7 +112,7 @@ export function CreditAccount({
               />
             </label>
             <button className="btn btn-primary btn-lg" onClick={submit} disabled={!parsed || over || short || busy !== null || max === 0n}>
-              {busy ? <><Spinner light /> Confirming…</> : mode === "draw" ? "Draw funds" : "Repay"}
+              {busy ? <><Spinner /> Confirming…</> : mode === "draw" ? "Draw funds" : "Repay"}
             </button>
           </div>
 

@@ -9,7 +9,7 @@ import { decodeAttestedTx, forgeValue, verifyOnCreditcoin, type DecodedReceipt, 
 import { fetchProof, ProverError, type AttestcoinProof } from "../lib/prover";
 import { useProtocol } from "../lib/protocol";
 import { Link } from "../lib/router";
-import { AddressLink, ChainTag, Check, Cross, Notice, Spinner, TxLink } from "../components/ui";
+import { AddressLink, ChainTag, Check, Cross, Empty, Icon, Notice, Skeleton, Spinner, TxLink } from "../components/ui";
 
 type Status = "idle" | "run" | "ok" | "fail" | "wait";
 
@@ -65,9 +65,9 @@ function Forge({ proof, lock }: { proof: AttestcoinProof; lock: LockedEvent }) {
   return (
     <div className="forge">
       <div className="forge-copy">
-        <div className="eyebrow eyebrow-dark">Now try to lie</div>
-        <h3 className="h3 h3-dark">Claim this portfolio is worth more.</h3>
-        <p className="dark-copy small">
+        <div className="eyebrow eyebrow-red">Now try to lie</div>
+        <h3 className="h-card-lg">Claim this portfolio is worth more.</h3>
+        <p className="muted">
           Your browser rewrites the dollar value inside the attested receipt — every other byte
           untouched — and sends it to the same precompile with the same proof. No admin key,
           oracle or Bifrost server can make this pass.
@@ -78,7 +78,7 @@ function Forge({ proof, lock }: { proof: AttestcoinProof; lock: LockedEvent }) {
           <span className="field-prefix">$</span>
           <input value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" aria-label="Forged value" />
         </label>
-        <button className="btn btn-light" onClick={submit} disabled={busy}>
+        <button className="btn btn-danger" onClick={submit} disabled={busy}>
           {busy ? <><Spinner /> Asking Creditcoin…</> : "Submit forged receipt"}
         </button>
         {result && (
@@ -166,16 +166,15 @@ export function Verify({ id }: { id: string }) {
 
   if (!rec || !lock) {
     return (
-      <div className="shell page">
-        <Link to="/ledger" className="crumb">← Proof ledger</Link>
-        <div className="gate card">
+      <div className="page narrow">
+        <div className="card">
           {!synced ? (
-            <div className="loading"><Spinner /> Reading both chains…</div>
+            <div className="card pad"><Skeleton w={220} /><div style={{ height: 12 }} /><Skeleton /></div>
           ) : (
-            <>
-              <h1 className="h1">No lock to verify for #{id}.</h1>
-              <p className="muted">A proof exists only once a portfolio has been locked on Sepolia.</p>
-            </>
+            <Empty icon={<Icon.Shield size={20} />} title={<>No lock to verify for #{id}.</>}>
+              <p>A proof exists only once a portfolio has been locked on Sepolia.</p>
+              <Link to="/ledger" className="btn btn-secondary">Back to ledger</Link>
+            </Empty>
           )}
         </div>
       </div>
@@ -186,18 +185,17 @@ export function Verify({ id }: { id: string }) {
   const receiptMatches = line && decoded ? line.receiptId.toLowerCase() === decoded.receiptId.toLowerCase() : null;
 
   return (
-    <div className="shell page narrow">
-      <Link to="/ledger" className="crumb">← Proof ledger</Link>
+    <div className="page narrow">
       <div className="verify-head">
-        <div className="eyebrow">Independent verification</div>
-        <h1 className="h1">Verify portfolio #{id} yourself.</h1>
-        <p className="lede-sm">
+        <span className="badge-verify"><Icon.Shield size={14} /> Independent verification</span>
+        <h1 className="page-title">Verify portfolio #{id} yourself</h1>
+        <p className="page-sub">
           This page doesn't trust Bifrost. Your browser fetches the Attestcoin proof for the Sepolia
           lock, decodes it, and asks Creditcoin's BlockProver precompile whether it holds — the same
           check the pool ran before lending a dollar.
         </p>
         <button className="btn btn-secondary btn-sm" onClick={() => void run()} disabled={proofS.status === "run" || verifyS.status === "run"}>
-          Run again
+          <Icon.Refresh size={14} /> Run again
         </button>
       </div>
 

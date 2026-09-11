@@ -7,7 +7,7 @@ import { Link } from "../lib/router";
 import { useRoles } from "../lib/usePortfolio";
 import { useWallet } from "../lib/wallet";
 import { ValuationForm } from "../components/ValuationForm";
-import { AddressLink, Chip, Notice, Spinner } from "../components/ui";
+import { AddressLink, Avatar, Check, Chip, Empty, Icon, Notice, Skeleton } from "../components/ui";
 
 type Urgency = { rank: number; label: string; tone: "amber" | "red" | "green" | "grey" };
 
@@ -49,12 +49,12 @@ export function Valuer() {
   );
 
   return (
-    <div className="shell page">
+    <div className="page">
       <div className="page-head">
         <div>
-          <div className="eyebrow">Valuation desk</div>
-          <h1 className="h1">Nothing is lent until you price it.</h1>
-          <p className="muted lede-sm">
+          <h1 className="page-title">Valuation desk</h1>
+          <p className="page-sub">
+            Nothing is lent until you price it. 
             Borrowers can't value their own collateral. Approved valuers publish the number on
             Sepolia; it stays lockable for {params ? duration(params.maxValuationAge) : "7 days"}, then
             has to be revisited. Once a portfolio is locked, its valuation is frozen.
@@ -90,15 +90,24 @@ export function Valuer() {
           <span />
         </div>
         {rows.length === 0 ? (
-          <div className="list-empty">
-            {synced ? (filter === "attention" ? "The queue is clear. Every unlocked portfolio has a fresh valuation." : "No portfolios registered yet.") : <><Spinner /> Reading the vault…</>}
-          </div>
+          synced ? (
+            <Empty icon={<Check size={18} />} title={filter === "attention" ? "The queue is clear." : "No portfolios registered yet."}>
+              {filter === "attention" && (
+                <>
+                  <p>Every unlocked portfolio has a fresh valuation.</p>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setFilter("all")}>Show all portfolios</button>
+                </>
+              )}
+            </Empty>
+          ) : (
+            <div className="list-empty"><Skeleton w={200} /></div>
+          )
         ) : (
           rows.map(({ p, u }) => (
             <div key={p.id} className={`list-row static${open === p.id ? " expanded" : ""}`}>
               <div className="list-row-main list-row-valuer">
-                <Link to={`/p/${p.id}`} className="list-id"><strong className="num">#{p.id}</strong></Link>
-                <span><AddressLink side="origin" address={p.owner} /></span>
+                <Link to={`/p/${p.id}`} className="cell-id"><span className="id-badge"><Icon.Layers size={14} /></span><strong className="num">#{p.id}</strong></Link>
+                <span className="row gap-xs"><Avatar address={p.owner} size={16} /><AddressLink side="origin" address={p.owner} /></span>
                 <span className="num">
                   {p.value > 0n ? usd(p.value) : <span className="dim">—</span>}
                   {p.valuedAt && <div className="dim small">round {String(p.round)} · {ago(p.valuedAt)}</div>}

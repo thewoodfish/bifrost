@@ -3,7 +3,7 @@ import { ago, usd, usdShort } from "../lib/format";
 import { creditFor, phaseOf } from "../lib/phase";
 import { useProtocol } from "../lib/protocol";
 import { go, Link } from "../lib/router";
-import { AddressLink, PhaseChip, Spinner, Stat, TxLink } from "../components/ui";
+import { AddressLink, Avatar, Icon, PhaseChip, Skeleton, Stat, TxLink } from "../components/ui";
 
 /**
  * Every lock and every line, public. For a lender this is the pool's book; for anyone
@@ -28,24 +28,23 @@ export function Ledger() {
       : null;
 
   return (
-    <div className="shell page">
+    <div className="page">
       <div className="page-head">
         <div>
-          <div className="eyebrow">Proof ledger</div>
-          <h1 className="h1">Every position, and the proof behind it.</h1>
-          <p className="muted lede-sm">
-            Each row is collateral escrowed on Sepolia. Each line was opened only after Creditcoin
-            verified an Attestcoin proof of that lock. Open any row to re-run the verification in
+          <h1 className="page-title">Proof ledger</h1>
+          <p className="page-sub">
+            Every position, and the proof behind it. Each line was opened only after Creditcoin
+            verified an Attestcoin proof of its Sepolia lock — open any row to re-run that check in
             your browser.
           </p>
         </div>
       </div>
 
-      <div className="card stats-card four">
-        <Stat label="Pool liquidity" value={usdShort(liquidity)} note="Idle stablecoins on Creditcoin" />
-        <Stat label="Collateral escrowed" value={usdShort(stats.collateralEscrowed)} note={`${stats.locks} lock${stats.locks === 1 ? "" : "s"} on Sepolia`} />
-        <Stat label="Credit extended" value={usdShort(stats.creditExtended)} note={`${stats.linesOpened} line${stats.linesOpened === 1 ? "" : "s"} opened`} />
-        <Stat label="Outstanding" value={usdShort(stats.outstanding)} note={utilization !== null ? `${utilization.toFixed(1)}% utilization` : " "} />
+      <div className="kpis kpis-4">
+        <div className="card kpi"><Stat label="Pool liquidity" icon={<Icon.Coins size={14} />} value={usdShort(liquidity)} note="Idle stablecoins on Creditcoin" /></div>
+        <div className="card kpi"><Stat label="Collateral escrowed" icon={<Icon.Lock size={14} />} value={usdShort(stats.collateralEscrowed)} note={`${stats.locks} lock${stats.locks === 1 ? "" : "s"} on Sepolia`} /></div>
+        <div className="card kpi"><Stat label="Credit extended" icon={<Icon.Bolt size={14} />} value={usdShort(stats.creditExtended)} note={`${stats.linesOpened} line${stats.linesOpened === 1 ? "" : "s"} opened`} /></div>
+        <div className="card kpi"><Stat label="Outstanding" icon={<Icon.Pulse size={14} />} value={usdShort(stats.outstanding)} note={utilization !== null ? `${utilization.toFixed(1)}% utilization` : " "} /></div>
       </div>
 
       <div className="card table-wrap">
@@ -65,7 +64,7 @@ export function Ledger() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={7} className="table-empty">
-                  {synced ? "No collateral has been locked yet." : <><Spinner /> Indexing both chains…</>}
+                  {synced ? "No collateral has been locked yet." : <span className="row" style={{ justifyContent: "center" }}><Skeleton w={220} /></span>}
                 </td>
               </tr>
             )}
@@ -73,8 +72,8 @@ export function Ledger() {
               const line = p.activeLine ?? p.lines[p.lines.length - 1];
               return (
                 <tr key={p.id} className="clickable" onClick={() => go(`/p/${p.id}`)}>
-                  <td><strong className="num">#{p.id}</strong></td>
-                  <td onClick={(e) => e.stopPropagation()}><AddressLink side="origin" address={p.owner} /></td>
+                  <td><div className="cell-id"><span className="id-badge"><Icon.Layers size={14} /></span><strong className="num">#{p.id}</strong></div></td>
+                  <td onClick={(e) => e.stopPropagation()}><span className="row gap-xs"><Avatar address={p.owner} size={16} /><AddressLink side="origin" address={p.owner} /></span></td>
                   <td className="r num">{usd(p.lastLock!.value)}</td>
                   <td className="r num">
                     {p.activeLine ? (
@@ -95,9 +94,9 @@ export function Ledger() {
                   </td>
                   <td className="r" onClick={(e) => e.stopPropagation()}>
                     {info.phase !== "in-transit" ? (
-                      <Link to={`/verify/${p.id}`} className="btn btn-secondary btn-sm">Verify</Link>
+                      <Link to={`/verify/${p.id}`} className="btn btn-secondary btn-sm"><Icon.Shield size={13} /> Verify</Link>
                     ) : (
-                      <span className="dim small">attesting…</span>
+                      <span className="chip chip-violet"><span className="chip-dot pulse" />Attesting</span>
                     )}
                   </td>
                 </tr>

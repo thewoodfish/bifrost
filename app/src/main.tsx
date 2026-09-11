@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ProtocolProvider } from "./lib/protocol";
+import { ToastProvider } from "./lib/toast";
 import { WalletProvider } from "./lib/wallet";
 import "./styles.css";
 
@@ -12,7 +13,9 @@ createRoot(root).render(
   <StrictMode>
     <WalletProvider>
       <ProtocolProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ProtocolProvider>
     </WalletProvider>
   </StrictMode>,

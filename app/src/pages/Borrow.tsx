@@ -1,46 +1,139 @@
 import { useMemo, useState } from "react";
 import { registerPortfolio } from "../lib/actions";
 import { origin } from "../lib/chains";
-import { duration, usd } from "../lib/format";
+import { ago, duration, usd, usdShort } from "../lib/format";
+import { chronological, type ProtocolEvent } from "../lib/indexer";
 import { creditFor, PHASE_META, phaseOf } from "../lib/phase";
 import { useProtocol } from "../lib/protocol";
 import { go, Link } from "../lib/router";
 import { useRoles } from "../lib/usePortfolio";
 import { useTx } from "../lib/useTx";
 import { useWallet } from "../lib/wallet";
-import { Notice, PhaseChip, Spinner, Stat } from "../components/ui";
+import { ChainTag, Check, Empty, Icon, Notice, PhaseChip, Skeleton, Spinner, Stat } from "../components/ui";
 
-function ConnectGate() {
-  const { connect, connecting, available, error } = useWallet();
+/** Protocol-wide numbers, so a visitor without a wallet still lands on something real. */
+function PoolCard() {
+  const { liquidity, stats } = useProtocol();
+  const total = liquidity !== null ? liquidity + stats.outstanding : null;
+  const util = total && total > 0n ? Number((stats.outstanding * 10_000n) / total) / 100 : 0;
   return (
-    <div className="shell page">
-      <div className="gate card">
-        <div className="eyebrow">Borrower console</div>
-        <h1 className="h1">Connect the wallet that owns your loan book.</h1>
-        <p className="muted">
-          Bifrost reads the vault on Sepolia and the pool on Creditcoin, finds every portfolio
-          your wallet owns, and shows what each one can borrow. Nothing to type, nothing to
-          import.
-        </p>
-        <div className="row">
-          {available ? (
-            <button className="btn btn-primary btn-lg" onClick={connect} disabled={connecting}>
-              {connecting ? "Connecting…" : "Connect wallet"}
-            </button>
-          ) : (
-            <a className="btn btn-primary btn-lg" href="https://metamask.io/download/" target="_blank" rel="noreferrer">
-              Install a browser wallet
-            </a>
-          )}
-          <Link to="/ledger" className="btn btn-ghost btn-lg">Browse live positions</Link>
-        </div>
-        {error && <Notice tone="red">{error}</Notice>}
+    <div className="card pad pool">
+      <div className="card-head">
+        <span className="card-title">Creditcoin pool</span>
+        <Link to="/ledger" className="card-link">Ledger <Icon.ArrowRight size={13} /></Link>
+      </div>
+      <div className="pool-value num">{liquidity !== null ? usd(liquidity) : <Skeleton w={160} h={28} />}</div>
+      <div className="dim small">available to borrow · TestUSDC</div>
+      <div className="util"><span style={{ width: `${Math.max(util, 0.6)}%` }} /></div>
+      <div className="util-legend small">
+        <span><i className="sw sw-a" /> Lent {usdShort(stats.outstanding)}</span>
+        <span className="dim">{util.toFixed(1)}% utilized</span>
       </div>
     </div>
   );
 }
 
-function RegisterPanel({ suggested, onDone }: { suggested: string; onDone: (id: string) => void }) {
+function feedLine(e: ProtocolEvent): { icon: React.ReactNode; text: React.ReactNode } | null {
+  switch (e.kind) {
+    case "registered": return { icon: <Icon.Plus size={14} />, text: <>Portfolio <strong>#{e.portfolioId}</strong> registered</> };
+    case "valued": return { icon: <Icon.Scale size={14} />, text: <><strong>#{e.portfolioId}</strong> valued at <strong>{usd(e.value)}</strong></> };
+    case "locked": return { icon: <Icon.Lock size={14} />, text: <><strong>{usd(e.value)}</strong> locked as collateral · #{e.portfolioId}</> };
+    case "unlocked": return { icon: <Icon.Lock size={14} />, text: <>Escrow released · #{e.portfolioId}</> };
+    case "opened": return { icon: <Icon.Shield size={14} />, text: <>Line of <strong>{usd(e.creditLimit)}</strong> opened against a proof · #{e.portfolioId}</> };
+    case "drawn": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> drawn · #{e.portfolioId}</> };
+    case "repaid": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> repaid · #{e.portfolioId}</> };
+    case "closed": return { icon: <Check size={14} />, text: <>Line closed · #{e.portfolioId}</> };
+    default: return null;
+  }
+}
+
+/** The protocol's pulse: every vault and engine event, newest first. */
+function ActivityFeed() {
+  const { events, synced } = useProtocol();
+  const rows = useMemo(
+    () =>
+      [...events]
+        .sort(chronological)
+        .reverse()
+        .map((e) => ({ e, l: feedLine(e) }))
+        .filter((r): r is { e: ProtocolEvent; l: NonNullable<ReturnType<typeof feedLine>> } => r.l !== null)
+        .slice(0, 8),
+    [events],
+  );
+  return (
+    <div className="card">
+      <div className="card-head card-head-pad">
+        <span className="card-title"><span className="dot dot-live" /> Protocol activity</span>
+        <Link to="/ledger" className="card-link">All positions <Icon.ArrowRight size={13} /></Link>
+      </div>
+      {rows.length === 0 ? (
+        <div className="rows-skel">{synced ? <Empty title="No activity yet." /> : [0, 1, 2].map((i) => <div key={i} className="row-skel"><Skeleton w={200} /><Skeleton w={80} /></div>)}</div>
+      ) : (
+        <ul className="feed">
+          {rows.map(({ e, l }) => (
+            <li key={`${e.tx}:${e.logIndex}`} className={`feed-item feed-${e.side}`}>
+              <span className="feed-icon">{l.icon}</span>
+              <div className="feed-text">
+                <div>{l.text}</div>
+                <div className="feed-meta"><ChainTag side={e.side} /></div>
+              </div>
+              <span className="feed-when">{e.ts ? ago(e.ts) : `#${e.block.toLocaleString()}`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ConnectGate() {
+  const { connect, connecting, available, error } = useWallet();
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-sub">Your credit lines, offers and collateral, across both chains.</p>
+        </div>
+      </div>
+      <div className="dash-grid">
+        <div className="card connect">
+          <div className="connect-glow" />
+          <div className="connect-icon"><Icon.Wallet size={22} /></div>
+          <h2 className="h-card-lg">Connect the wallet that owns your loan book</h2>
+          <p className="muted">
+            Bifrost reads the vault on Sepolia and the pool on Creditcoin, finds every portfolio your
+            wallet owns, and shows what each one can borrow. Nothing to type, nothing to import.
+          </p>
+          <div className="row">
+            {available ? (
+              <button className="btn btn-primary btn-lg" onClick={connect} disabled={connecting}>
+                {connecting ? <><Spinner /> Connecting…</> : "Connect wallet"}
+              </button>
+            ) : (
+              <a className="btn btn-primary btn-lg" href="https://metamask.io/download/" target="_blank" rel="noreferrer">
+                Install a browser wallet
+              </a>
+            )}
+            <Link to="/ledger" className="btn btn-ghost btn-lg">Browse live positions</Link>
+          </div>
+          {error && <Notice tone="red">{error}</Notice>}
+          <div className="connect-steps">
+            <span><Icon.Lock size={14} /> Lock on Sepolia</span>
+            <span><Icon.Shield size={14} /> Attestcoin proves it</span>
+            <span><Icon.Coins size={14} /> Funded on Creditcoin</span>
+          </div>
+        </div>
+        <div className="dash-side"><PoolCard /></div>
+      </div>
+      <div className="dash-grid">
+        <ActivityFeed />
+      </div>
+    </div>
+  );
+}
+
+function RegisterPanel({ suggested, onDone, onClose }: { suggested: string; onDone: (id: string) => void; onClose: () => void }) {
   const [id, setId] = useState(suggested);
   const { portfolios } = useProtocol();
   const { busy, error, run } = useTx();
@@ -48,15 +141,16 @@ function RegisterPanel({ suggested, onDone }: { suggested: string; onDone: (id: 
   const valid = /^\d+$/.test(id) && !taken;
 
   return (
-    <div className="card register">
-      <div className="register-head">
+    <div className="card pad register">
+      <div className="card-head">
         <div>
-          <div className="h3">Register a portfolio</div>
-          <div className="muted small">Creates its escrow slot in the Sepolia vault. One signature.</div>
+          <div className="card-title">Register a portfolio</div>
+          <div className="dim small">Creates its escrow slot in the Sepolia vault. One signature.</div>
         </div>
+        <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon.Close size={15} /></button>
       </div>
       <form
-        className="register-form"
+        className="inline-form"
         onSubmit={(e) => {
           e.preventDefault();
           if (!valid) return;
@@ -65,13 +159,13 @@ function RegisterPanel({ suggested, onDone }: { suggested: string; onDone: (id: 
       >
         <label className="field">
           <span className="field-label">Portfolio ID</span>
-          <input value={id} onChange={(e) => setId(e.target.value.trim())} inputMode="numeric" />
+          <div className="input-wrap"><span className="input-prefix">#</span><input value={id} onChange={(e) => setId(e.target.value.trim())} inputMode="numeric" /></div>
         </label>
-        <button className="btn btn-primary" disabled={!valid || busy !== null}>
-          {busy ? <><Spinner light /> Registering…</> : "Register"}
+        <button className="btn btn-primary btn-md" disabled={!valid || busy !== null}>
+          {busy ? <><Spinner /> Registering…</> : "Register"}
         </button>
       </form>
-      {taken && <div className="field-hint">#{id} is already registered.</div>}
+      {taken && <div className="field-hint warn">#{id} is already registered.</div>}
       {error && <Notice tone="red">{error}</Notice>}
     </div>
   );
@@ -82,7 +176,6 @@ export function Borrow() {
   const roles = useRoles(address);
   const { portfolios, attestation, params, synced } = useProtocol();
   const [registering, setRegistering] = useState(false);
-  const [lookup, setLookup] = useState("");
 
   const mine = useMemo(() => {
     if (!address) return [];
@@ -93,18 +186,19 @@ export function Borrow() {
   }, [portfolios, address, attestation, params]);
 
   const totals = useMemo(() => {
-    let available = 0n, drawn = 0n, escrowed = 0n, pending = 0n;
+    let available = 0n, drawn = 0n, escrowed = 0n, pending = 0n, limit = 0n;
     for (const { p, info } of mine) {
       if (p.activeLine) {
         available += p.activeLine.creditLimit - p.activeLine.drawn;
         drawn += p.activeLine.drawn;
+        limit += p.activeLine.creditLimit;
       }
       if (p.locked && p.lastLock) escrowed += p.lastLock.value;
       if (info.phase === "ready" || info.phase === "in-transit" || info.phase === "offer") {
         pending += creditFor(p.lastLock?.value ?? p.value, params);
       }
     }
-    return { available, drawn, escrowed, pending };
+    return { available, drawn, escrowed, pending, limit };
   }, [mine, params]);
 
   const suggested = useMemo(() => {
@@ -114,31 +208,21 @@ export function Borrow() {
 
   if (!address) return <ConnectGate />;
 
-  const needsAction = mine.filter(({ info }) => info.phase === "offer" || info.phase === "ready");
+  const needsAction = mine.filter(({ info }) => info.phase === "offer" || info.phase === "ready" || info.phase === "in-transit");
+  const usedPct = totals.limit > 0n ? Number((totals.drawn * 10_000n) / totals.limit) / 100 : 0;
 
   return (
-    <div className="shell page">
+    <div className="page">
       <div className="page-head">
         <div>
-          <div className="eyebrow">Borrower console</div>
-          <h1 className="h1">Your credit</h1>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-sub">Your credit lines, offers and collateral, across both chains.</p>
         </div>
-        <div className="row">
-          <form
-            className="lookup"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (/^\d+$/.test(lookup)) go(`/p/${lookup}`);
-            }}
-          >
-            <input placeholder="Look up portfolio #" value={lookup} onChange={(e) => setLookup(e.target.value.trim())} inputMode="numeric" />
-          </form>
-          {roles.originator && (
-            <button className="btn btn-primary" onClick={() => setRegistering((r) => !r)}>
-              {registering ? "Close" : "Register portfolio"}
-            </button>
-          )}
-        </div>
+        {roles.originator && (
+          <button className="btn btn-primary" onClick={() => setRegistering((r) => !r)}>
+            <Icon.Plus size={15} /> Register portfolio
+          </button>
+        )}
       </div>
 
       {roles.valuer && (
@@ -150,6 +234,7 @@ export function Borrow() {
       {registering && (
         <RegisterPanel
           suggested={suggested}
+          onClose={() => setRegistering(false)}
           onDone={(id) => {
             setRegistering(false);
             go(`/p/${id}`);
@@ -157,42 +242,55 @@ export function Borrow() {
         />
       )}
 
-      <div className="card stats-card">
-        <Stat big label="Available to draw" value={usd(totals.available)} note={totals.drawn > 0n ? `${usd(totals.drawn)} drawn` : "Across open lines"} />
-        <Stat label="Awaiting claim or lock" value={usd(totals.pending)} note="Offers and proofs in flight" />
-        <Stat label="Collateral escrowed" value={usd(totals.escrowed)} note="Held on Sepolia" />
+      <div className="kpis">
+        <div className="card kpi kpi-hero">
+          <Stat big label="Available to draw" value={usd(totals.available)} note={totals.limit > 0n ? `of ${usd(totals.limit)} in open lines` : "Open a line to start drawing"} />
+          <div className="util"><span style={{ width: `${usedPct}%` }} /></div>
+          <div className="util-legend small">
+            <span><i className="sw sw-a" /> Drawn {usd(totals.drawn)}</span>
+            <span className="dim">{usedPct.toFixed(1)}% used</span>
+          </div>
+        </div>
+        <div className="card kpi"><Stat label="In flight" icon={<Icon.Clock size={14} />} value={usd(totals.pending)} note="Offers and proofs on their way" /></div>
+        <div className="card kpi"><Stat label="Collateral escrowed" icon={<Icon.Lock size={14} />} value={usd(totals.escrowed)} note="Held on Sepolia" /></div>
       </div>
 
       {needsAction.length > 0 && (
-        <div className="action-strip">
-          {needsAction.map(({ p, info }) => (
-            <Link key={p.id} to={`/p/${p.id}`} className="action-item">
-              <span className="action-dot" />
-              <span>
-                <strong>#{p.id}</strong>{" "}
-                {info.phase === "ready"
-                  ? `— ${usd(creditFor(p.lastLock!.value, params))} is ready to claim`
-                  : `— offer of ${usd(creditFor(p.value, params))} waiting for you`}
-              </span>
-              <span className="action-go">→</span>
-            </Link>
-          ))}
+        <div className="actions">
+          {needsAction.map(({ p, info }) => {
+            const amount = creditFor(p.lastLock?.value ?? p.value, params);
+            const [title, cta] =
+              info.phase === "ready" ? [`${usd(amount)} is ready to claim`, "Claim"]
+              : info.phase === "offer" ? [`Offer of ${usd(amount)} waiting for you`, "Review offer"]
+              : [`${usd(amount)} on its way`, "Track"];
+            return (
+              <Link key={p.id} to={`/p/${p.id}`} className={`action action-${info.phase}`}>
+                <span className="action-icon">
+                  {info.phase === "ready" ? <Icon.Coins size={16} /> : info.phase === "offer" ? <Icon.Bolt size={16} /> : <Icon.Pulse size={16} />}
+                </span>
+                <span className="action-text">
+                  <strong>{title}</strong>
+                  <span className="dim small">
+                    Portfolio #{p.id}
+                    {info.phase === "in-transit" && info.eta !== null && ` · Attestcoin ~${duration(info.eta)} away`}
+                  </span>
+                </span>
+                <span className="action-cta">{cta} <Icon.ArrowRight size={14} /></span>
+              </Link>
+            );
+          })}
         </div>
       )}
 
-      <div className="list card">
-        <div className="list-head">
-          <span>Portfolio</span>
-          <span>Collateral</span>
-          <span>Credit</span>
-          <span>Status</span>
+      <div className="card">
+        <div className="card-head card-head-pad">
+          <span className="card-title">Portfolios <span className="count">{mine.length}</span></span>
         </div>
         {!synced && mine.length === 0 ? (
-          <div className="list-empty"><Spinner /> Reading your portfolios from Sepolia and Creditcoin…</div>
+          <div className="rows-skel">{[0, 1, 2].map((i) => <div key={i} className="row-skel"><Skeleton w={90} /><Skeleton w={110} /><Skeleton w={120} /><Skeleton w={100} h={22} r={999} /></div>)}</div>
         ) : mine.length === 0 ? (
-          <div className="list-empty">
-            <div className="h3">No portfolios in this wallet yet.</div>
-            <p className="muted">
+          <Empty icon={<Icon.Layers size={20} />} title="No portfolios in this wallet yet.">
+            <p>
               {roles.originator
                 ? "Register your first portfolio to open its escrow slot."
                 : roles.loaded
@@ -200,38 +298,59 @@ export function Borrow() {
                   : "Checking this wallet's roles…"}
             </p>
             {roles.originator && !registering && (
-              <button className="btn btn-primary" onClick={() => setRegistering(true)}>Register portfolio</button>
+              <button className="btn btn-primary" onClick={() => setRegistering(true)}><Icon.Plus size={15} /> Register portfolio</button>
             )}
-          </div>
+          </Empty>
         ) : (
-          mine.map(({ p, info }) => {
-            const line = p.activeLine;
-            const base = p.lastLock?.value ?? p.value;
-            return (
-              <Link key={p.id} to={`/p/${p.id}`} className="list-row">
-                <span className="list-id">
-                  <strong className="num">#{p.id}</strong>
-                  <span className="dim small">{PHASE_META[info.phase].next}</span>
-                </span>
-                <span className="num">{base > 0n ? usd(base) : <span className="dim">Unvalued</span>}</span>
-                <span className="num">
-                  {line ? (
-                    <>{usd(line.creditLimit - line.drawn)} <span className="dim small">free</span></>
-                  ) : base > 0n && info.phase !== "repaid" ? (
-                    <span className="dim">up to {usd(creditFor(base, params))}</span>
-                  ) : (
-                    <span className="dim">—</span>
-                  )}
-                </span>
-                <span className="list-status">
-                  <PhaseChip phase={info.phase} />
-                  {info.phase === "in-transit" && info.eta !== null && (
-                    <span className="dim small">~{duration(info.eta)}</span>
-                  )}
-                </span>
-              </Link>
-            );
-          })
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Portfolio</th>
+                  <th className="r">Collateral</th>
+                  <th className="r">Credit</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {mine.map(({ p, info }) => {
+                  const line = p.activeLine;
+                  const base = p.lastLock?.value ?? p.value;
+                  return (
+                    <tr key={p.id} className="clickable" onClick={() => go(`/p/${p.id}`)}>
+                      <td>
+                        <div className="cell-id">
+                          <span className="id-badge"><Icon.Layers size={14} /></span>
+                          <div>
+                            <strong className="num">#{p.id}</strong>
+                            <div className="dim small">{PHASE_META[info.phase].next}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="r num">{base > 0n ? usd(base) : <span className="dim">Unvalued</span>}</td>
+                      <td className="r num">
+                        {line ? (
+                          <>{usd(line.creditLimit - line.drawn)} <div className="dim small">free of {usd(line.creditLimit)}</div></>
+                        ) : base > 0n && info.phase !== "repaid" ? (
+                          <span className="dim">up to {usd(creditFor(base, params))}</span>
+                        ) : (
+                          <span className="dim">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="row gap-sm">
+                          <PhaseChip phase={info.phase} />
+                          {info.phase === "in-transit" && info.eta !== null && <span className="dim small">~{duration(info.eta)}</span>}
+                        </div>
+                      </td>
+                      <td className="r"><Icon.ArrowRight size={15} className="row-go" /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -47,8 +47,8 @@ export function ValuationForm({
             aria-label="Valuation in USD"
           />
         </label>
-        <button className="btn btn-primary" disabled={!parsed || busy !== null}>
-          {busy ? <><Spinner light /> Publishing…</> : current && current > 0n ? "Republish" : "Publish valuation"}
+        <button className="btn btn-primary btn-md" disabled={!parsed || busy !== null}>
+          {busy ? <><Spinner /> Publishing…</> : current && current > 0n ? "Republish" : "Publish valuation"}
         </button>
       </form>
       {parsed !== null && !compact && (

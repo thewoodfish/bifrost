@@ -16,7 +16,8 @@ import { useWallet } from "../lib/wallet";
 import { CreditAccount } from "../components/CreditAccount";
 import { ProofJourney } from "../components/ProofJourney";
 import { ValuationForm } from "../components/ValuationForm";
-import { AddressLink, ChainTag, Check, Cross, Notice, PhaseChip, Spinner, TxLink } from "../components/ui";
+import { Avatar, AddressLink, ChainTag, Check, Cross, Empty, Icon, Notice, PhaseChip, Skeleton, Spinner, TxLink } from "../components/ui";
+import type { Phase } from "../lib/phase";
 
 // ── Offer ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ function OfferHero({
   const stale = info.phase === "stale";
 
   return (
-    <div className="hero-card card">
+    <div className="card hero-card glow-card">
       <div className="eyebrow">{stale ? "Offer paused" : "Your offer"}</div>
       <div className="offer-amount num">{usd(limit)}</div>
       <div className="offer-terms">
@@ -68,7 +69,7 @@ function OfferHero({
               disabled={busy !== null}
               onClick={() => void run("lock", origin.id, (w, a) => lockPortfolio(w, a, BigInt(rec.id)), onLocked)}
             >
-              {busy ? <><Spinner light /> Locking on Sepolia…</> : `Accept & lock collateral`}
+              {busy ? <><Spinner /> Locking on Sepolia…</> : <>Accept &amp; lock collateral <Icon.ArrowRight size={16} /></>}
             </button>
           ) : (
             <Notice>
@@ -174,7 +175,7 @@ function ClaimHero({
   ];
 
   return (
-    <div className="hero-card card">
+    <div className="card hero-card glow-card">
       <div className="eyebrow">Funds ready</div>
       <div className="offer-amount num">{usd(limit)}</div>
       <div className="offer-terms">
@@ -204,7 +205,7 @@ function ClaimHero({
           disabled={!preview || busy !== null}
           onClick={() => preview && void run("open", creditcoin.id, (w, a) => submitOpen(w, a, preview), async () => { await live.refresh(); await onClaimed(); })}
         >
-          {busy ? <><Spinner light /> Verifying on Creditcoin…</> : preview ? `Claim ${usd(limit)}` : "Running checks…"}
+          {busy ? <><Spinner /> Verifying on Creditcoin…</> : preview ? <>Claim {usd(limit)} <Icon.ArrowRight size={16} /></> : <><Spinner /> Running checks…</>}
         </button>
       ) : (
         <Notice>{address ? "Only the portfolio owner can claim this line." : "Connect the owner's wallet to claim."}</Notice>
@@ -214,7 +215,7 @@ function ClaimHero({
         Each lock opens exactly one line. <Link to={`/verify/${rec.id}`} className="link">Inspect the proof →</Link>
       </div>
       {(engineC.state === "fail" || verifyC.state === "fail" || fetchC.state === "fail") && (
-        <button className="btn btn-ghost btn-sm" onClick={() => void runChecks()}>Run checks again</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => void runChecks()}><Icon.Refresh size={14} /> Run checks again</button>
       )}
       {error && <Notice tone="red">{error}</Notice>}
     </div>
@@ -250,7 +251,7 @@ function Timeline({ rec }: { rec: PortfolioRecord }) {
   }
   return (
     <div className="card side-card">
-      <div className="side-title">Activity</div>
+      <div className="card-title">Activity</div>
       <ol className="timeline">
         {[...items].reverse().map((i) => (
           <li key={i.key} className={`tl tl-${i.side}`}>
@@ -267,6 +268,44 @@ function Timeline({ rec }: { rec: PortfolioRecord }) {
         ))}
       </ol>
     </div>
+  );
+}
+
+// ── Lifecycle ────────────────────────────────────────────────────────────────
+
+const STAGES = ["Registered", "Valued", "Locked", "Attested", "Funded"] as const;
+
+/** How far along the five-stage lifecycle a phase is, and whether the current stage is live or stuck. */
+function stageOf(phase: Phase): { at: number; state: "active" | "fail" | "done" } {
+  switch (phase) {
+    case "unregistered": return { at: 0, state: "active" };
+    case "awaiting-valuation": return { at: 1, state: "active" };
+    case "stale": return { at: 1, state: "fail" };
+    case "offer": return { at: 2, state: "active" };
+    case "in-transit": return { at: 3, state: "active" };
+    case "ready": return { at: 4, state: "active" };
+    case "expired": return { at: 4, state: "fail" };
+    case "active":
+    case "repaid": return { at: 5, state: "done" };
+  }
+}
+
+function Lifecycle({ phase }: { phase: Phase }) {
+  const { at, state } = stageOf(phase);
+  return (
+    <ol className="lifecycle">
+      {STAGES.map((label, i) => {
+        const s = i < at ? "done" : i === at ? state : "todo";
+        return (
+          <li key={label} className={`lc lc-${s}`}>
+            <span className="lc-node">
+              {s === "done" ? <Check size={12} /> : s === "fail" ? <Cross size={12} /> : s === "active" ? <i /> : <span className="num">{i + 1}</span>}
+            </span>
+            <span className="lc-label">{label === "Funded" && phase === "repaid" ? "Repaid" : label}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -290,25 +329,33 @@ export function PortfolioPage({ id }: { id: string }) {
   const notFound = !rec && live.portfolio && !live.portfolio.exists;
 
   if (loading) {
-    return <div className="shell page"><div className="loading"><Spinner /> Reading portfolio #{id} from both chains…</div></div>;
+    return (
+      <div className="page">
+        <div className="page-head"><div><Skeleton w={260} h={34} /><div style={{ height: 10 }} /><Skeleton w={180} /></div></div>
+        <div className="card pad"><Skeleton w="100%" h={36} /></div>
+        <div className="detail">
+          <div className="card pad"><Skeleton w={140} /><div style={{ height: 16 }} /><Skeleton w={280} h={56} /><div style={{ height: 16 }} /><Skeleton w="80%" /></div>
+          <div className="card pad"><Skeleton w={120} /><div style={{ height: 16 }} /><Skeleton /><div style={{ height: 10 }} /><Skeleton /></div>
+        </div>
+      </div>
+    );
   }
 
   if (notFound || !rec) {
     return (
-      <div className="shell page">
-        <Link to="/app" className="crumb">← Your credit</Link>
-        <div className="gate card">
-          <div className="eyebrow">Portfolio #{id}</div>
-          <h1 className="h1">Nothing registered under this ID.</h1>
-          <p className="muted">
-            {roles.originator
-              ? "Register it from your console to open its escrow slot."
-              : "Portfolios are registered by approved originators. Check the ID, or browse live positions."}
-          </p>
-          <div className="row">
-            <Link to="/app" className="btn btn-primary">Back to console</Link>
-            <Link to="/ledger" className="btn btn-ghost">Proof ledger</Link>
-          </div>
+      <div className="page">
+        <div className="card">
+          <Empty icon={<Icon.Search size={20} />} title={<>Nothing registered under #{id}.</>}>
+            <p>
+              {roles.originator
+                ? "Register it from your dashboard to open its escrow slot."
+                : "Portfolios are registered by approved originators. Check the ID, or browse live positions."}
+            </p>
+            <div className="row" style={{ justifyContent: "center" }}>
+              <Link to="/app" className="btn btn-primary">Back to dashboard</Link>
+              <Link to="/ledger" className="btn btn-ghost">Proof ledger</Link>
+            </div>
+          </Empty>
         </div>
       </div>
     );
@@ -318,27 +365,32 @@ export function PortfolioPage({ id }: { id: string }) {
   const claimed = rec.lines.length > 0 && info.phase !== "ready" && info.phase !== "in-transit";
 
   return (
-    <div className="shell page">
-      <Link to={isOwner ? "/app" : "/ledger"} className="crumb">← {isOwner ? "Your credit" : "Proof ledger"}</Link>
+    <div className="page">
       <div className="page-head">
         <div>
           <div className="row gap-sm">
-            <h1 className="h1 num">Portfolio #{id}</h1>
+            <h1 className="page-title num">Portfolio #{id}</h1>
             <PhaseChip phase={info.phase} />
           </div>
-          <div className="muted small">
-            Owned by <AddressLink side="origin" address={owner!} />
-            {isOwner && <span className="you">you</span>}
+          <div className="owner-line">
+            <Avatar address={owner!} size={16} />
+            <AddressLink side="origin" address={owner!} />
+            {isOwner && <span className="you">You</span>}
           </div>
         </div>
+        {rec.lastLock && (
+          <Link to={`/verify/${id}`} className="btn btn-secondary"><Icon.Shield size={15} /> Verify proof</Link>
+        )}
       </div>
+
+      <div className="card lifecycle-card"><Lifecycle phase={info.phase} /></div>
 
       <div className="detail">
         <div className="detail-main">
           {info.phase === "awaiting-valuation" && (
-            <div className="hero-card card">
-              <div className="eyebrow">Step 1 of 3</div>
-              <h2 className="h2">Waiting on an independent valuation</h2>
+            <div className="card hero-card">
+              <div className="eyebrow">Waiting on a valuer</div>
+              <h2 className="h-card-lg">An independent valuation comes first</h2>
               <p className="muted">
                 Bifrost never lets a borrower price their own collateral — otherwise the proof would
                 faithfully certify whatever number you chose. An approved valuer publishes the value
@@ -360,7 +412,7 @@ export function PortfolioPage({ id }: { id: string }) {
               <OfferHero rec={rec} info={info} isOwner={isOwner} onLocked={refreshAll} />
               {roles.valuer && (
                 <div className="card pad">
-                  <div className="h3">Revalue</div>
+                  <div className="card-title">Revalue</div>
                   <p className="muted small">You're an approved valuer. A new valuation replaces this one and restarts its freshness window.</p>
                   <ValuationForm portfolioId={id} current={rec.value} onDone={refreshAll} />
                 </div>
@@ -369,15 +421,15 @@ export function PortfolioPage({ id }: { id: string }) {
           )}
 
           {info.phase === "in-transit" && rec.lastLock && (
-            <div className="hero-card card">
+            <div className="card hero-card glow-card glow-violet">
               <div className="eyebrow">Proof in transit</div>
-              <h2 className="h2">
-                {info.eta !== null && info.eta > 0 ? <>About {duration(info.eta)} to go</> : <>Almost there</>}
+              <h2 className="h-hero num">
+                {info.eta !== null && info.eta > 0 ? <>~{duration(info.eta)} to go</> : <>Almost there</>}
               </h2>
               <p className="muted">
                 Your collateral is locked on Sepolia. Attestcoin validators are working through the
                 chain toward your block; once they sign it, Creditcoin can verify the lock and release{" "}
-                <strong>{usd(creditFor(rec.lastLock.value, params))}</strong>. You can close this tab —
+                <strong className="strong">{usd(creditFor(rec.lastLock.value, params))}</strong>. You can close this tab —
                 everything lives on-chain.
               </p>
               <ProofJourney lock={rec.lastLock} info={info} claimed={false} />
@@ -394,9 +446,9 @@ export function PortfolioPage({ id }: { id: string }) {
           )}
 
           {info.phase === "expired" && rec.lastLock && (
-            <div className="hero-card card">
-              <div className="eyebrow">Claim window closed</div>
-              <h2 className="h2">This lock is too old to borrow against.</h2>
+            <div className="card hero-card">
+              <div className="eyebrow eyebrow-red">Claim window closed</div>
+              <h2 className="h-card-lg">This lock is too old to borrow against.</h2>
               <p className="muted">
                 The pool only accepts a proof within {params?.maxLockAge.toLocaleString()} Sepolia blocks
                 (about {params ? duration(params.maxLockAge * SEPOLIA_BLOCK_SECONDS) : "a day"}) of the
@@ -411,13 +463,13 @@ export function PortfolioPage({ id }: { id: string }) {
             <CreditAccount line={line} portfolioId={id} onChange={refreshAll} />
           )}
           {info.phase === "active" && !line && (
-            <div className="card pad loading"><Spinner /> Reading the line from Creditcoin…</div>
+            <div className="card pad"><Skeleton w={140} /><div style={{ height: 14 }} /><Skeleton w={260} h={52} /></div>
           )}
 
           {info.phase === "repaid" && (
-            <div className="hero-card card">
+            <div className="card hero-card">
               <div className="eyebrow">Closed</div>
-              <h2 className="h2">Repaid in full.</h2>
+              <h2 className="h-card-lg">Repaid in full.</h2>
               <p className="muted">
                 The line is closed on Creditcoin.{" "}
                 {rec.locked
@@ -438,7 +490,7 @@ export function PortfolioPage({ id }: { id: string }) {
 
         <aside className="detail-side">
           <div className="card side-card">
-            <div className="side-title">Collateral</div>
+            <div className="card-title">Collateral</div>
             <dl className="facts">
               <dt>Value</dt>
               <dd className="num">{rec.value > 0n ? usd(rec.value) : "Unvalued"}</dd>
@@ -447,10 +499,10 @@ export function PortfolioPage({ id }: { id: string }) {
               <dt>Last valued</dt>
               <dd>{rec.valuedAt ? ago(rec.valuedAt) : "—"}</dd>
               <dt>Escrow</dt>
-              <dd>{rec.locked ? "Locked on Sepolia" : "Not locked"}</dd>
+              <dd>{rec.locked ? <span className="ok-text"><Icon.Lock size={12} /> Locked</span> : "Not locked"}</dd>
               {rec.lastLock && (
                 <>
-                  <dt>Lock</dt>
+                  <dt>Lock tx</dt>
                   <dd><TxLink side="origin" hash={rec.lastLock.tx} /></dd>
                 </>
               )}
@@ -461,9 +513,6 @@ export function PortfolioPage({ id }: { id: string }) {
                 </>
               )}
             </dl>
-            {rec.lastLock && (
-              <Link to={`/verify/${id}`} className="btn btn-secondary btn-sm full">Verify this proof yourself</Link>
-            )}
           </div>
           <Timeline rec={rec} />
         </aside>
