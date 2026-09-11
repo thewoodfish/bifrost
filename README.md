@@ -72,22 +72,22 @@ sequenceDiagram
     autonumber
     actor V as Valuer
     actor B as Borrower
-    participant S as RWAOriginVault (Sepolia)
+    participant S as Vault · Sepolia
     participant A as Attestcoin
-    participant C as CreditcoinPoolEngine (Creditcoin)
-    participant P as BlockProver 0x…0FD2
+    participant C as Pool engine · Creditcoin
+    participant P as BlockProver
 
-    V->>S: setValuation(id, $750,000)
-    B->>S: lockPortfolio(id)
-    S-->>A: emits PortfolioLocked(owner, id, value, round)
-    Note over A: validators attest the Sepolia block (8–20 min)
-    B->>A: GET /api/v1/proof-by-tx/1/{txHash}
-    A-->>B: encoded tx + Merkle proof + continuity proof
-    B->>C: attestAndOpenCredit(claim, encodedTx, merkle, continuity)
-    C->>P: verifyAndEmit(chainKey, height, encodedTx, merkle, continuity)
+    V->>S: setValuation
+    B->>S: lockPortfolio
+    S-->>A: PortfolioLocked event
+    Note over A: validators attest<br/>the block (8–20 min)
+    B->>A: GET proof-by-tx
+    A-->>B: encoded tx + proofs
+    B->>C: attestAndOpenCredit
+    C->>P: verifyAndEmit
     P-->>C: true
-    C->>C: decode the lock from the proven receipt, bind owner, value and round, age it against ChainInfo
-    C-->>B: credit line at 80% LTV, drawable in USDC
+    C->>C: decode lock from receipt,<br/>bind claim, check age
+    C-->>B: credit line at 80% LTV
 ```
 
 | # | Layer | Chain | Code |
@@ -101,15 +101,15 @@ sequenceDiagram
 Attestcoin sits in the credit decision itself. The protocol touches every part of its
 surface, both on-chain and from the browser:
 
-| Attestcoin surface | Where | What Bifrost uses it for |
-|---|---|---|
-| `BlockProver.verifyAndEmit` | `CreditcoinPoolEngine.attestAndOpenCredit` | The gate on every credit line. No `true`, no money. |
-| `BlockProver.verify` (view) | `previewIngest`, and the browser | Free dry-run before the borrower signs, and in-browser re-verification of any position by anyone |
-| `ChainInfo.get_latest_attestation_height_and_hash` | Engine, on-chain | **Lock freshness.** Rejects a proof whose lock the attestation frontier left more than `maxLockAge` blocks behind (`LockTooOld`) |
-| `ChainInfo.is_height_attested` | SDK and portal | The signal to start proving. The claim button waits on it, not on a timer |
-| `ChainInfo.get_supported_chains` | Landing page, CLI `status` | Shows which source chains are actually attested, read live |
-| Prover API `proof-by-tx` | SDK (`@gluwa/usc-sdk` `ProofBuilder`) and the browser directly (CORS `*`) | Merkle and continuity proofs. The portal needs no backend |
-| Attestation lag | Sidebar widget, ETAs | Real frontier minus Sepolia head, measured every 15 s. No fake progress bars |
+| Attestcoin surface | How Bifrost uses it |
+|---|---|
+| **BlockProver** `verifyAndEmit` | The gate on every credit line, called inside `attestAndOpenCredit`. No `true`, no money. |
+| **BlockProver** `verify` | A free dry-run in `previewIngest` before the borrower signs, and in-browser re-verification of any position by anyone. |
+| **ChainInfo** `get_latest_attestation_height_and_hash` | **Lock freshness, on-chain.** The engine rejects a proof whose lock the attestation frontier left more than `maxLockAge` blocks behind (`LockTooOld`). |
+| **ChainInfo** `is_height_attested` | The signal to start proving, in the SDK and the portal. The claim button waits on it, not on a timer. |
+| **ChainInfo** `get_supported_chains` | Which source chains are actually attested, read live on the landing page and by `bifrost status`. |
+| **Prover API** `proof-by-tx` | Merkle and continuity proofs, via `@gluwa/usc-sdk`'s `ProofBuilder` in the SDK and fetched directly by the browser (CORS `*`), so the portal needs no backend. |
+| **Attestation lag** | Frontier vs. Sepolia head, measured every 15 s, drives the sidebar widget and every ETA. No fake progress bars. |
 
 ### Things we verified against the live network, not the docs
 
