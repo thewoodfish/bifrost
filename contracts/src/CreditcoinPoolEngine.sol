@@ -24,6 +24,11 @@ interface IERC20 {
  *      one of them must equal what the proven receipt says, or the call reverts.
  *      A borrower therefore cannot mint credit beyond what an independent valuer
  *      published and the origin chain actually escrowed.
+ *
+ *      The pool is funded by liquidity providers, who hold shares in it (4626-style:
+ *      deposit assets, redeem shares). Borrowers pay simple interest on drawn principal;
+ *      a reserve factor of each interest payment goes to the protocol and the rest raises
+ *      the value of every share.
  */
 contract CreditcoinPoolEngine {
     using AttestedTx for bytes;
@@ -67,6 +72,39 @@ contract CreditcoinPoolEngine {
      */
     uint64 public maxLockAge = 7_200;
 
+    // -- Lending pool state ------------------------------------------------------
+
+    uint256 public constant YEAR = 365 days;
+    /// @dev Ceilings, so neither the borrow rate nor the protocol's cut can be set abusive.
+    uint256 public constant MAX_BORROW_RATE_BPS = 5_000;
+    uint256 public constant MAX_RESERVE_FACTOR_BPS = 5_000;
+    /// @dev Virtual shares and assets in every conversion. The share-price offset makes a
+    ///      first-depositor inflation attack cost the attacker far more than it takes.
+    uint256 internal constant VIRTUAL_SHARES = 1e6;
+    uint256 internal constant VIRTUAL_ASSETS = 1;
+
+    /// @notice Borrower APR on drawn principal, simple interest accruing per second.
+    uint256 public borrowRateBps = 800;
+    /// @notice Share of every interest payment kept by the protocol. At 8% and 25% this is
+    ///         the business model on-chain: borrowers pay ~8%, LPs earn ~6%, 2% is spread.
+    uint256 public reserveFactorBps = 2_500;
+
+    uint256 public totalShares;
+    mapping(address => uint256) public sharesOf;
+    /// @notice Principal currently lent out. Part of pool assets: it is owed back.
+    uint256 public totalBorrowed;
+    /// @notice Interest collected for the protocol and not yet withdrawn. Not LP money.
+    uint256 public protocolReserves;
+
+    /// @dev Interest is tracked beside the line rather than inside it, so `CreditLine` and
+    ///      every consumer decoding it keep their layout.
+    struct Accrual {
+        uint256 interest;
+        uint64 lastAccrued;
+    }
+
+    mapping(uint256 => Accrual) internal accruals;
+
     struct LockClaim {
         uint64 chainKey;
         uint64 height;
@@ -103,6 +141,13 @@ contract CreditcoinPoolEngine {
     event Drawn(address indexed borrower, uint256 indexed portfolioId, uint256 amount);
     event Repaid(address indexed borrower, uint256 indexed portfolioId, uint256 amount);
     event CreditLineClosed(uint256 indexed portfolioId);
+    /// @dev `Repaid` carries principal only, so a drawn balance is still drawn − repaid.
+    event InterestPaid(address indexed payer, uint256 indexed portfolioId, uint256 interest, uint256 toReserves);
+    event Deposited(address indexed lp, uint256 assets, uint256 shares);
+    event Withdrawn(address indexed lp, uint256 assets, uint256 shares);
+    event BorrowRateUpdated(uint256 borrowRateBps);
+    event ReserveFactorUpdated(uint256 reserveFactorBps);
+    event ReservesWithdrawn(address indexed to, uint256 amount);
     event LtvUpdated(uint256 ltvBps);
     event MaxLockAgeUpdated(uint64 maxLockAge);
     event AdminTransferred(address indexed newAdmin);
@@ -126,6 +171,11 @@ contract CreditcoinPoolEngine {
     error BadLockAge();
     error ZeroValue();
     error TransferFailed();
+    error ZeroShares();
+    error InsufficientShares();
+    error InsufficientLiquidity();
+    error RateTooHigh();
+    error ReserveFactorTooHigh();
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
@@ -291,29 +341,145 @@ contract CreditcoinPoolEngine {
         if (!line.open) revert NoOpenLine();
         if (line.borrower != msg.sender) revert BorrowerMismatch();
         if (line.drawn + amount > line.creditLimit) revert ExceedsCreditLimit();
+        // Protocol reserves sit in the same balance but are not the pool's to lend.
+        if (amount > idleLiquidity()) revert InsufficientLiquidity();
 
+        _accrue(portfolioId);
         line.drawn += amount;
+        totalBorrowed += amount;
         if (!stablecoin.transfer(msg.sender, amount)) revert TransferFailed();
 
         emit Drawn(msg.sender, portfolioId, amount);
     }
 
+    /**
+     * @notice Pay down a line: accrued interest first, then principal. Paying more than
+     *         is owed charges only what is owed, so "repay in full" can pass any ceiling.
+     *         The line closes once both principal and interest reach zero.
+     */
     function repay(uint256 portfolioId, uint256 amount) external {
         CreditLine storage line = creditLines[portfolioId];
         if (!line.open) revert NoOpenLine();
-        if (line.drawn == 0) revert NothingDrawn();
+        Accrual storage a = accruals[portfolioId];
+        _accrue(portfolioId);
+        uint256 debt = line.drawn + a.interest;
+        if (debt == 0) revert NothingDrawn();
 
-        uint256 payment = amount > line.drawn ? line.drawn : amount;
-        line.drawn -= payment;
+        uint256 payment = amount > debt ? debt : amount;
+        uint256 toInterest = payment > a.interest ? a.interest : payment;
+        uint256 toPrincipal = payment - toInterest;
+        uint256 toReserves = (toInterest * reserveFactorBps) / BPS;
+
+        a.interest -= toInterest;
+        line.drawn -= toPrincipal;
+        totalBorrowed -= toPrincipal;
+        protocolReserves += toReserves;
         if (!stablecoin.transferFrom(msg.sender, address(this), payment)) revert TransferFailed();
 
-        emit Repaid(msg.sender, portfolioId, payment);
+        if (toInterest > 0) emit InterestPaid(msg.sender, portfolioId, toInterest, toReserves);
+        if (toPrincipal > 0) emit Repaid(msg.sender, portfolioId, toPrincipal);
 
-        if (line.drawn == 0) {
+        if (line.drawn == 0 && a.interest == 0) {
             line.open = false;
             portfolioHasOpenLine[portfolioId] = false;
             emit CreditLineClosed(portfolioId);
         }
+    }
+
+    /// @dev Roll interest forward to now. A rate change applies from each line's next touch.
+    function _accrue(uint256 portfolioId) internal {
+        Accrual storage a = accruals[portfolioId];
+        a.interest = _owedInterest(creditLines[portfolioId].drawn, a);
+        a.lastAccrued = uint64(block.timestamp);
+    }
+
+    function _owedInterest(uint256 drawn, Accrual storage a) internal view returns (uint256) {
+        if (drawn == 0 || a.lastAccrued == 0) return a.interest;
+        return a.interest + (drawn * borrowRateBps * (block.timestamp - a.lastAccrued)) / (BPS * YEAR);
+    }
+
+    // -- Liquidity providers ---------------------------------------------------
+
+    /// @notice Add liquidity; mints shares at the current share price.
+    function deposit(uint256 assets) external returns (uint256 shares) {
+        if (assets == 0) revert ZeroValue();
+        shares = convertToShares(assets);
+        if (shares == 0) revert ZeroShares();
+
+        totalShares += shares;
+        sharesOf[msg.sender] += shares;
+        if (!stablecoin.transferFrom(msg.sender, address(this), assets)) revert TransferFailed();
+
+        emit Deposited(msg.sender, assets, shares);
+    }
+
+    /// @notice Take out exactly `assets`, burning the shares they are worth (rounded up).
+    function withdraw(uint256 assets) external returns (uint256 shares) {
+        if (assets == 0) revert ZeroValue();
+        uint256 supply = totalShares + VIRTUAL_SHARES;
+        uint256 pool = totalAssets() + VIRTUAL_ASSETS;
+        shares = (assets * supply + pool - 1) / pool;
+        _exit(assets, shares);
+    }
+
+    /// @notice Burn `shares` for what they are worth now (rounded down).
+    function redeem(uint256 shares) external returns (uint256 assets) {
+        if (shares == 0) revert ZeroShares();
+        assets = convertToAssets(shares);
+        _exit(assets, shares);
+    }
+
+    function _exit(uint256 assets, uint256 shares) internal {
+        if (shares > sharesOf[msg.sender]) revert InsufficientShares();
+        // Lent-out principal is owed to LPs but is not here to hand back yet.
+        if (assets > idleLiquidity()) revert InsufficientLiquidity();
+
+        sharesOf[msg.sender] -= shares;
+        totalShares -= shares;
+        if (!stablecoin.transfer(msg.sender, assets)) revert TransferFailed();
+
+        emit Withdrawn(msg.sender, assets, shares);
+    }
+
+    /// @notice LP money: idle stablecoin plus principal owed back. Unpaid interest counts
+    ///         only once paid, so share price never rests on a debt that might not be.
+    function totalAssets() public view returns (uint256) {
+        return stablecoin.balanceOf(address(this)) - protocolReserves + totalBorrowed;
+    }
+
+    /// @notice Stablecoin available to draw or withdraw right now.
+    function idleLiquidity() public view returns (uint256) {
+        return stablecoin.balanceOf(address(this)) - protocolReserves;
+    }
+
+    function convertToShares(uint256 assets) public view returns (uint256) {
+        return (assets * (totalShares + VIRTUAL_SHARES)) / (totalAssets() + VIRTUAL_ASSETS);
+    }
+
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        return (shares * (totalAssets() + VIRTUAL_ASSETS)) / (totalShares + VIRTUAL_SHARES);
+    }
+
+    /// @notice What an LP's shares are worth now.
+    function assetsOf(address lp) external view returns (uint256) {
+        return convertToAssets(sharesOf[lp]);
+    }
+
+    /// @notice Principal lent out as a share of LP money, in basis points.
+    function utilizationBps() public view returns (uint256) {
+        uint256 assets = totalAssets();
+        return assets == 0 ? 0 : (totalBorrowed * BPS) / assets;
+    }
+
+    /// @notice What LP money earns at current utilization, after the protocol's cut.
+    function supplyRateBps() external view returns (uint256) {
+        return (borrowRateBps * utilizationBps() * (BPS - reserveFactorBps)) / (BPS * BPS);
+    }
+
+    /// @notice Principal and interest owed on a line right now.
+    function owed(uint256 portfolioId) external view returns (uint256 principal, uint256 interest) {
+        principal = creditLines[portfolioId].drawn;
+        interest = _owedInterest(principal, accruals[portfolioId]);
     }
 
     // -- Admin -----------------------------------------------------------------
@@ -329,6 +495,27 @@ contract CreditcoinPoolEngine {
         if (newMaxLockAge == 0 || newMaxLockAge > MAX_LOCK_AGE_LIMIT) revert BadLockAge();
         maxLockAge = newMaxLockAge;
         emit MaxLockAgeUpdated(newMaxLockAge);
+    }
+
+    function setBorrowRateBps(uint256 newRateBps) external onlyAdmin {
+        if (newRateBps > MAX_BORROW_RATE_BPS) revert RateTooHigh();
+        borrowRateBps = newRateBps;
+        emit BorrowRateUpdated(newRateBps);
+    }
+
+    function setReserveFactorBps(uint256 newFactorBps) external onlyAdmin {
+        if (newFactorBps > MAX_RESERVE_FACTOR_BPS) revert ReserveFactorTooHigh();
+        reserveFactorBps = newFactorBps;
+        emit ReserveFactorUpdated(newFactorBps);
+    }
+
+    /// @notice Collect the protocol's share of interest. Never touches LP money.
+    function withdrawReserves(address to, uint256 amount) external onlyAdmin {
+        if (to == address(0)) revert ZeroAddress();
+        if (amount > protocolReserves) revert InsufficientLiquidity();
+        protocolReserves -= amount;
+        if (!stablecoin.transfer(to, amount)) revert TransferFailed();
+        emit ReservesWithdrawn(to, amount);
     }
 
     function transferAdmin(address newAdmin) external onlyAdmin {

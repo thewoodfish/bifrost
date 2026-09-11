@@ -18,7 +18,7 @@ import {ChainInfoAddr} from "../src/interfaces/IChainInfo.sol";
  *   STABLECOIN     (optional) existing token; a TestUSDC is deployed if unset
  *   CHAIN_KEY      (optional) source chainKey; defaults to 1 (Sepolia on CC3)
  *   ADMIN          (optional) defaults to the broadcasting account
- *   POOL_LIQUIDITY (optional) tUSDC minted into the pool; defaults to 10,000,000
+ *   POOL_LIQUIDITY (optional) tUSDC the deployer deposits as the first LP; defaults to 10,000,000
  */
 contract DeployCreditcoin is Script {
     function run() external returns (CreditcoinPoolEngine engine, address stablecoin) {
@@ -52,8 +52,14 @@ contract DeployCreditcoin is Script {
         // Fund the pool whether or not the token is freshly deployed. Gating this on a
         // new token meant that reusing an existing stablecoin — the normal path on a
         // redeploy — silently shipped a pool with nothing in it to draw.
+        //
+        // Through `deposit`, as the first LP, never by minting into the engine: stablecoin
+        // that arrives without shares belongs to nobody, and the first depositor would
+        // capture it.
         if (liquidity > 0) {
-            TestUSDC(stablecoin).mint(address(engine), liquidity);
+            TestUSDC(stablecoin).mint(deployer, liquidity);
+            TestUSDC(stablecoin).approve(address(engine), liquidity);
+            engine.deposit(liquidity);
         }
 
         vm.stopBroadcast();
@@ -69,6 +75,9 @@ contract DeployCreditcoin is Script {
 
         uint256 funded = TestUSDC(stablecoin).balanceOf(address(engine));
         console.log("  pool balance:      ", funded);
+        console.log("  deployer LP shares:", engine.sharesOf(deployer));
+        console.log("  borrow rate (bps): ", engine.borrowRateBps());
+        console.log("  reserve factor:    ", engine.reserveFactorBps());
         if (funded == 0) {
             console.log("");
             console.log("WARNING: the pool holds no stablecoin. Lines will open but nothing can be drawn.");
