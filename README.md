@@ -297,7 +297,7 @@ We'd rather list these than have you find them.
 - **Undrawn credit isn't reserved, and rates are fixed.** Lenders can withdraw idle liquidity that open lines haven't drawn yet, so a draw can fail with `InsufficientLiquidity`. The borrow rate is a flat 8%, not utilization-based.
 - **Escrow release is admin-gated.** Repayment on Creditcoin isn't visible from Sepolia, so the vault admin unlocks the portfolio.
 - **One origin chain.** Sepolia is the only testnet Attestcoin attests, and the engine pins one `chainKey` and one vault at deploy.
-- **Unaudited.** Contracts have 78 tests and the portal 38; claim, draw and repay have run from the portal against the live pool. None of it has been audited.
+- **Unaudited.** Contracts have 78 tests and the portal 38, and every write path — claim, draw, repay, deposit, withdraw — has run from the portal against the live pool with a real wallet. None of it has been audited.
 - **Production needs** KYC/AML partners and institutional custody (Fireblocks, BitGo).
 
 ## What's next

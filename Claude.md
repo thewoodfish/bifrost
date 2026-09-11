@@ -297,8 +297,8 @@ Still open:
    and partly repaid ($25,000, interest first) from the portal with Rabby on 2026-09-11.
    The vault is verified on Sepolia Etherscan; CC3 offers no explorer verification.
 3. **Unaudited.** 78 Foundry tests, 38 portal tests (decoder against a real attested
-   Bifrost lock captured from the prover). The portal's deposit/withdraw path has not yet
-   been sent from a real wallet; claim, draw and repay have.
+   Bifrost lock captured from the prover). Every portal write — claim, draw, repay,
+   deposit, withdraw — has been sent from a real wallet (Rabby) on 2026-09-11.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
 5. **No health factor or liquidation.** The LTV buffer is enforced only at open. A position
