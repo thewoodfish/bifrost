@@ -10,6 +10,9 @@ export function explainTxError(e: unknown, chain: number): string {
   const err = e as { shortMessage?: string; message?: string };
   const m = `${err.shortMessage ?? ""} ${err.message ?? ""}`;
   if (/user rejected|denied|rejected the request/i.test(m)) return "You cancelled the request in your wallet.";
+  if (/unrecognized chain|try adding the chain/i.test(m)) {
+    return "Your wallet doesn't know Creditcoin CC3 testnet yet and refused to add it. Add it manually (chain id 102031, RPC https://rpc.cc3-testnet.creditcoin.network) and retry.";
+  }
   if (/insufficient funds/i.test(m)) {
     return chain === creditcoin.id
       ? "This wallet has no CTC to pay Creditcoin gas. Fund it from the Creditcoin testnet faucet and retry."

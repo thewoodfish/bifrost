@@ -8,6 +8,7 @@ import { useToasts } from "../lib/toast";
 import { useRoles } from "../lib/usePortfolio";
 import { useWallet } from "../lib/wallet";
 import { CommandPalette } from "./CommandPalette";
+import { WalletPicker } from "./WalletPicker";
 import { Arrow, Avatar, Check, Cross, Icon, Logo, Notice, Spinner } from "./ui";
 
 const CHAIN_NAMES: Record<number, string> = {
@@ -109,7 +110,7 @@ function Sidebar({ section, open, onClose }: { section: string; open: boolean; o
 // ── Topbar ───────────────────────────────────────────────────────────────────
 
 function WalletButton() {
-  const { address, chainId, connect, disconnect, connecting, available } = useWallet();
+  const { address, chainId, connect, disconnect, connecting, available, wallet } = useWallet();
   const roles = useRoles(address);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -156,6 +157,12 @@ function WalletButton() {
               </div>
             </div>
           </div>
+          {wallet && (
+            <div className="menu-row">
+              <span className="dim">Wallet</span>
+              <span className="row gap-xs">{wallet.icon && <img src={wallet.icon} alt="" className="menu-wallet-icon" />}{wallet.name}</span>
+            </div>
+          )}
           <div className="menu-row">
             <span className="dim">Network</span>
             <span>{chainId ? (CHAIN_NAMES[chainId] ?? `Chain ${chainId}`) : "—"}</span>
@@ -170,6 +177,9 @@ function WalletButton() {
             }}
           >
             <Icon.Copy size={15} /> {copied ? "Copied" : "Copy address"}
+          </button>
+          <button className="menu-item" onClick={() => { setOpen(false); void connect(); }}>
+            <Icon.Wallet size={15} /> Switch wallet
           </button>
           <button className="menu-item" onClick={() => { disconnect(); setOpen(false); }}>
             <Icon.Logout size={15} /> Disconnect
@@ -273,6 +283,7 @@ export function AppShell({ route, children }: { route: string[]; children: React
         <main className="content">{children}</main>
       </div>
       <CommandPalette open={palette} onClose={() => setPalette(false)} />
+      <WalletPicker />
       <Toaster />
     </div>
   );

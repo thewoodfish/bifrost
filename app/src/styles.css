@@ -333,6 +333,19 @@ kbd { font-family: var(--mono); font-size: 10.5px; padding: 2px 6px; border-radi
 .palette-icon { color: var(--text-3); display: grid; }
 .palette-label { flex: 1; }
 .palette-hint { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.picker { width: min(420px, 100%); background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 18px; display: flex; flex-direction: column; gap: 14px; animation: pop 160ms ease; }
+.picker-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.picker-title { font-size: 16px; font-weight: 650; letter-spacing: -0.02em; }
+.picker-list { display: flex; flex-direction: column; gap: 8px; }
+.picker-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border-2); background: var(--surface); cursor: pointer; font-size: 14px; font-weight: 550; text-align: left; transition: border-color 120ms, background 120ms; }
+.picker-item:hover:not(:disabled) { border-color: var(--border-3); background: var(--surface-2); }
+.picker-item:disabled { opacity: 0.7; cursor: wait; }
+.picker-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.picker-icon-blank { display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); }
+.picker-name { flex: 1; }
+.picker-go { color: var(--text-3); }
+.picker-foot { padding-top: 10px; border-top: 1px solid var(--border); }
+.menu-wallet-icon { width: 14px; height: 14px; border-radius: 4px; }
 .palette-empty { padding: 24px; text-align: center; color: var(--text-3); }
 
 /* ── Dashboard ───────────────────────────────────────────────────────────── */
