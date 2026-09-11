@@ -5,7 +5,7 @@ Cross-chain private credit, proven by Attestcoin and funded on Creditcoin.
 
 ![Bifrost landing page with a live position bridging Sepolia collateral to Creditcoin credit](https://raw.githubusercontent.com/thewoodfish/bifrost/main/docs/screenshots/landing.png)
 
-**Code:** https://github.com/thewoodfish/bifrost · **Live on:** Sepolia → Creditcoin CC3 testnet · **Tests:** 78 contract, 38 portal
+**Demo video:** https://youtu.be/ufsz9Mp4Bbw · **Code:** https://github.com/thewoodfish/bifrost · **Live on:** Sepolia → Creditcoin CC3 testnet · **Tests:** 78 contract, 38 portal
 
 ---
 

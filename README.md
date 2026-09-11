@@ -18,6 +18,10 @@
 </p>
 
 <p align="center">
+  <a href="https://youtu.be/ufsz9Mp4Bbw"><strong>▶ Watch the demo video</strong></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/landing.png" alt="Bifrost landing page with a live position bridging Sepolia collateral to Creditcoin credit" width="100%" />
 </p>
 
