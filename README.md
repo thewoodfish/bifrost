@@ -50,7 +50,8 @@ proven receipt, never out of the borrower's calldata.
 - [Run it](#run-it)
 - [Repository layout](#repository-layout)
 - [Business model](#business-model)
-- [Known gaps and what's next](#known-gaps-and-whats-next)
+- [Known gaps](#known-gaps)
+- [What's next](#whats-next)
 
 ---
 
@@ -266,15 +267,25 @@ Gluwa and Creditcoin ecosystems routing stablecoins into real yield. Every lock,
 attestation and drawdown is on-chain activity for Creditcoin, and it pulls RWA liquidity
 that is stranded on other chains.
 
-## Known gaps and what's next
+## Known gaps
 
-We'd rather list these than have you find them:
+We'd rather list these than have you find them.
 
-- **Sepolia is the only origin chain**, because it's the only testnet Attestcoin attests. Base and Plume become config changes once Attestcoin supports them.
-- **Unlocking is admin-gated.** Creditcoin repayment isn't yet proven back to Sepolia. *Next:* a symmetric Creditcoin → origin attestation to release escrow trustlessly.
-- **No interest accrual, health factor or liquidation yet.** The LTV buffer is enforced at open only. *Next:* re-attested valuations that halt drawdowns automatically below a threshold.
+- **No lender side yet.** The pool was funded by minting test USDC. There's no deposit or withdrawal for liquidity providers, so the LP yield in the business model is a design, not yet a feature.
+- **No interest, health factor or liquidation.** The 80% LTV buffer is enforced when a line opens and never re-checked. A position that goes underwater against a later valuation isn't caught on-chain.
+- **Escrow release is admin-gated.** Repayment on Creditcoin isn't visible from Sepolia, so the vault admin unlocks the portfolio.
+- **One origin chain.** Sepolia is the only testnet Attestcoin attests, and the engine pins one `chainKey` and one vault at deploy.
 - **The portal is unaudited and has no test suite.** Its read paths and pre-flight checks are verified against the live deployment. Lines have been opened and drawn via the SDK, but not yet from the portal UI.
 - **Production needs** KYC/AML partners and institutional custody (Fireblocks, BitGo).
+
+## What's next
+
+Ordered by how much deeper each one takes the Attestcoin integration.
+
+1. **Re-attested valuations for live collateral health.** This is buildable on today's Attestcoin. A valuer revalues a locked portfolio on Sepolia, the new valuation is attested and proven to the engine, and the engine shrinks the credit limit or halts draws when the line is over its LTV. Attestcoin goes from a one-time gate to continuous collateral monitoring, and "drawdowns halt automatically" becomes something a proof enforces. The vault needs a `PortfolioRevalued` event for locked portfolios, alongside the frozen lock value.
+2. **Many origin chains.** A vault on each chain, and an engine that accepts a set of `(chainKey, vault)` pairs instead of one immutable pair. Ethereum mainnet (key 3) is already attested; Base, Plume and others follow as Attestcoin adds them.
+3. **Proven settlement back to the origin chain.** Once Creditcoin state can be verified on the origin chain, the vault releases escrow on a proof that the line was repaid, which removes the last admin key from the lifecycle. This needs Creditcoin → origin attestation from Attestcoin; today it runs one way.
+4. **The lender side, on-chain.** Share-based LP deposits and withdrawals, utilization-based interest, and the origination fee, so the business model runs as code.
 
 ## License
 
