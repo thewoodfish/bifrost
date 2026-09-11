@@ -43,12 +43,16 @@ export type EngineEvent = On<"creditcoin",
     }
   | { kind: "drawn" | "repaid"; portfolioId: string; borrower: Address; amount: bigint }
   | { kind: "closed"; portfolioId: string }
+  | { kind: "interest"; portfolioId: string; payer: Address; amount: bigint; toReserves: bigint }
+  | { kind: "deposited"; lp: Address; assets: bigint; shares: bigint }
+  | { kind: "withdrawn"; lp: Address; assets: bigint; shares: bigint }
 >;
 
 export type ProtocolEvent = VaultEvent | EngineEvent;
 export type LockedEvent = Extract<VaultEvent, { kind: "locked" }>;
 export type ValuedEvent = Extract<VaultEvent, { kind: "valued" }>;
 export type OpenedEvent = Extract<EngineEvent, { kind: "opened" }>;
+export type LpEvent = Extract<EngineEvent, { kind: "deposited" | "withdrawn" }>;
 
 // ── Cache ────────────────────────────────────────────────────────────────────
 
@@ -157,6 +161,12 @@ function toEvent(side: "origin" | "creditcoin", l: RawLog): ProtocolEvent | null
         return { ...base, side, kind: "repaid", portfolioId: id, borrower: a.borrower, amount: a.amount };
       case "CreditLineClosed":
         return { ...base, side, kind: "closed", portfolioId: id };
+      case "InterestPaid":
+        return { ...base, side, kind: "interest", portfolioId: id, payer: a.payer, amount: a.interest, toReserves: a.toReserves };
+      case "Deposited":
+        return { ...base, side, kind: "deposited", lp: a.lp, assets: a.assets, shares: a.shares };
+      case "Withdrawn":
+        return { ...base, side, kind: "withdrawn", lp: a.lp, assets: a.assets, shares: a.shares };
     }
   }
   return null;
@@ -270,6 +280,8 @@ export interface LineRecord {
   receiptId: Hex;
   opened: OpenedEvent;
   open: boolean;
+  /** Interest paid on this line so far. Not part of `drawn`: repayments carry principal only. */
+  interestPaid: bigint;
   closedAt?: ProtocolEvent;
   /** The Sepolia lock whose attested receipt opened this line. */
   lock?: LockedEvent;
@@ -296,7 +308,12 @@ export interface ProtocolView {
   lines: LineRecord[];
   valuers: Address[];
   originators: Address[];
+  /** Lender-side history, in order. */
+  lpEvents: LpEvent[];
   stats: {
+    /** Interest borrowers have paid, protocol reserves included. */
+    interestPaid: bigint;
+    lenders: number;
     collateralEscrowed: bigint;
     creditExtended: bigint;
     outstanding: bigint;
@@ -355,7 +372,13 @@ export function derive(events: ProtocolEvent[]): ProtocolView {
   // round, earliest not already claimed. The engine binds exactly those fields to the
   // receipt, so a match here is the same match the contract made.
   const claimed = new Set<string>();
+  const lpEvents: LpEvent[] = [];
+  let interestPaid = 0n;
   for (const e of engine) {
+    if (e.kind === "deposited" || e.kind === "withdrawn") {
+      lpEvents.push(e);
+      continue;
+    }
     const p = ensure(e.portfolioId);
     p.history.push(e);
     if (e.kind === "opened") {
@@ -366,7 +389,7 @@ export function derive(events: ProtocolEvent[]): ProtocolView {
       const line: LineRecord = {
         portfolioId: e.portfolioId, borrower: e.borrower, attestedValue: e.attestedValue,
         creditLimit: e.creditLimit, drawn: 0n, round: e.round, receiptId: e.receiptId,
-        opened: e, open: true, lock,
+        opened: e, open: true, lock, interestPaid: 0n,
       };
       lines.push(line);
       p.lines.push(line);
@@ -376,6 +399,10 @@ export function derive(events: ProtocolEvent[]): ProtocolView {
       if (!line) continue;
       if (e.kind === "drawn") line.drawn += e.amount;
       if (e.kind === "repaid") line.drawn -= e.amount;
+      if (e.kind === "interest") {
+        line.interestPaid += e.amount;
+        interestPaid += e.amount;
+      }
       if (e.kind === "closed") {
         line.open = false;
         line.closedAt = e;
@@ -400,7 +427,10 @@ export function derive(events: ProtocolEvent[]): ProtocolView {
     lines,
     valuers: pick(roles.valuer),
     originators: pick(roles.originator),
+    lpEvents,
     stats: {
+      interestPaid,
+      lenders: new Set(lpEvents.filter((e) => e.kind === "deposited").map((e) => e.lp.toLowerCase())).size,
       collateralEscrowed,
       creditExtended: openLines.reduce((s, l) => s + l.creditLimit, 0n),
       outstanding: openLines.reduce((s, l) => s + l.drawn, 0n),

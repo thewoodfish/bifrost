@@ -3,6 +3,7 @@ import { Empty, Icon } from "./components/ui";
 import { Link, useRoute } from "./lib/router";
 import { Borrow } from "./pages/Borrow";
 import { Landing } from "./pages/Landing";
+import { Lend } from "./pages/Lend";
 import { Ledger } from "./pages/Ledger";
 import { PortfolioPage } from "./pages/Portfolio";
 import { Valuer } from "./pages/Valuer";
@@ -26,6 +27,7 @@ function Page({ route }: { route: string[] }) {
   switch (section) {
     case "app": return <Borrow />;
     case "p": return numeric ? <PortfolioPage key={arg} id={arg} /> : <NotFound />;
+    case "lend": return <Lend />;
     case "valuer": return <Valuer />;
     case "ledger": return <Ledger />;
     case "verify": return numeric ? <Verify key={arg} id={arg} /> : <NotFound />;

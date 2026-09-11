@@ -3,7 +3,7 @@ import { formatUnits, parseUnits } from "ethers";
 import { config } from "./config.js";
 import { attestationLag, chainInfo, creditcoin } from "./chain.js";
 import { buildProof } from "./attest.js";
-import { creditLineOf, drawDown, lockPortfolio, openCreditLine, readLock } from "./flow.js";
+import { creditLineOf, drawDown, lockPortfolio, openCreditLine, poolStats, readLock } from "./flow.js";
 import type { Stage } from "./attest.js";
 
 const log = (s: string) => console.log(s);
@@ -79,14 +79,27 @@ async function cmdDraw(portfolioId: string, amount: string) {
   console.log(`drawn in ${hash}`);
 }
 
+const pct = (bps: bigint) => `${(Number(bps) / 100).toFixed(2)}%`;
+
 async function cmdLine(portfolioId: string) {
-  const l = await creditLineOf(BigInt(portfolioId));
+  const { line: l, interest, rateBps } = await creditLineOf(BigInt(portfolioId));
   if (!l.open && l.creditLimit === 0n) return console.log(`no credit line for portfolio ${portfolioId}`);
   console.log(`borrower:      ${l.borrower}`);
   console.log(`attested:      ${usd(l.attestedValue)}`);
   console.log(`credit limit:  ${usd(l.creditLimit)}`);
   console.log(`drawn:         ${usd(l.drawn)}`);
+  console.log(`interest owed: ${formatUnits(interest, 6)} tUSDC at ${pct(rateBps)} APR`);
   console.log(`open:          ${l.open}`);
+}
+
+async function cmdPool() {
+  const p = await poolStats();
+  console.log(`LP assets:     ${usd(p.assets!)}`);
+  console.log(`idle:          ${usd(p.idle!)}`);
+  console.log(`lent out:      ${usd(p.borrowed!)}  (${pct(p.util!)} utilized)`);
+  console.log(`borrow APR:    ${pct(p.borrowRate!)}`);
+  console.log(`LP APR now:    ${pct(p.supplyRate!)}  (after ${pct(p.reserveFactor!)} reserve factor)`);
+  console.log(`reserves:      ${formatUnits(p.reserves!, 6)} tUSDC`);
 }
 
 const USAGE = `bifrost — Attestcoin proof pipeline
@@ -96,7 +109,8 @@ const USAGE = `bifrost — Attestcoin proof pipeline
   prove <txHash>                wait for attestation and print the proof
   open <txHash>                 prove, dry-run, and open the credit line
   draw <portfolioId> <usd>      draw against an open line
-  line <portfolioId>            show a credit line
+  line <portfolioId>            show a credit line, with interest owed
+  pool                          LP assets, utilization and rates
 
 Env: ORIGIN_VAULT, POOL_ENGINE, and a signer
      (KEYSTORE_ACCOUNT + KEYSTORE_PASSWORD, or PRIVATE_KEY)`;
@@ -118,6 +132,8 @@ async function main() {
     case "draw":
       if (args.length < 2) throw new Error("usage: draw <portfolioId> <usd>");
       return cmdDraw(args[0]!, args[1]!);
+    case "pool":
+      return cmdPool();
     case "line":
       if (!args[0]) throw new Error("usage: line <portfolioId>");
       return cmdLine(args[0]);

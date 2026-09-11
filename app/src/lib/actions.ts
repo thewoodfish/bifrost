@@ -142,39 +142,121 @@ export async function draw(w: WalletClient, account: Address, portfolioId: bigin
  */
 export async function repay(
   w: WalletClient, account: Address, portfolioId: bigint, dollars: string,
-): Promise<{ approveTx?: Hex; repayTx: Hex }> {
+): Promise<{ repayTx: Hex }> {
   const amount = usdc(dollars);
-  const allowance = (await creditcoinClient.readContract({
-    address: config.stablecoin, abi: ERC20_ABI, functionName: "allowance",
-    args: [account, config.poolEngine],
-  })) as bigint;
-
-  let approveTx: Hex | undefined;
-  if (allowance < amount) {
-    approveTx = await w.writeContract({
-      chain: creditcoin, account, address: config.stablecoin,
-      abi: ERC20_ABI, functionName: "approve", args: [config.poolEngine, amount],
-    });
-    await creditcoinClient.waitForTransactionReceipt({ hash: approveTx });
-  }
-
+  await ensureAllowance(w, account, amount);
   const repayTx = await w.writeContract({
     chain: creditcoin, account, address: config.poolEngine,
     abi: ENGINE_ABI, functionName: "repay", args: [portfolioId, amount],
   });
   await creditcoinClient.waitForTransactionReceipt({ hash: repayTx });
-  return { approveTx, repayTx };
+  return { repayTx };
+}
+
+// ── Lender side ──────────────────────────────────────────────────────────────
+
+/** Approve only when the allowance is short — a second wallet prompt is where people quit. */
+async function ensureAllowance(w: WalletClient, account: Address, amount: bigint) {
+  const allowance = (await creditcoinClient.readContract({
+    address: config.stablecoin, abi: ERC20_ABI, functionName: "allowance",
+    args: [account, config.poolEngine],
+  })) as bigint;
+  if (allowance >= amount) return;
+  const hash = await w.writeContract({
+    chain: creditcoin, account, address: config.stablecoin,
+    abi: ERC20_ABI, functionName: "approve", args: [config.poolEngine, amount],
+  });
+  await creditcoinClient.waitForTransactionReceipt({ hash });
+}
+
+export async function deposit(w: WalletClient, account: Address, dollars: string) {
+  const amount = usdc(dollars);
+  await ensureAllowance(w, account, amount);
+  const hash = await w.writeContract({
+    chain: creditcoin, account, address: config.poolEngine,
+    abi: ENGINE_ABI, functionName: "deposit", args: [amount],
+  });
+  await creditcoinClient.waitForTransactionReceipt({ hash });
+  return hash;
+}
+
+export async function withdraw(w: WalletClient, account: Address, dollars: string) {
+  const hash = await w.writeContract({
+    chain: creditcoin, account, address: config.poolEngine,
+    abi: ENGINE_ABI, functionName: "withdraw", args: [usdc(dollars)],
+  });
+  await creditcoinClient.waitForTransactionReceipt({ hash });
+  return hash;
+}
+
+/** Exit a whole position by shares, so rounding never leaves dust behind. */
+export async function redeemAll(w: WalletClient, account: Address) {
+  const shares = (await creditcoinClient.readContract({
+    address: config.poolEngine, abi: ENGINE_ABI, functionName: "sharesOf", args: [account],
+  })) as bigint;
+  const hash = await w.writeContract({
+    chain: creditcoin, account, address: config.poolEngine,
+    abi: ENGINE_ABI, functionName: "redeem", args: [shares],
+  });
+  await creditcoinClient.waitForTransactionReceipt({ hash });
+  return hash;
+}
+
+/** TestUSDC's open mint, so anyone can try lending. Testnet only, by construction. */
+export async function mintTestUsdc(w: WalletClient, account: Address, dollars: string) {
+  const hash = await w.writeContract({
+    chain: creditcoin, account, address: config.stablecoin,
+    abi: ERC20_ABI, functionName: "mint", args: [account, usdc(dollars)],
+  });
+  await creditcoinClient.waitForTransactionReceipt({ hash });
+  return hash;
+}
+
+export async function lpPosition(account: Address): Promise<{ shares: bigint; assets: bigint }> {
+  const [shares, assets] = await Promise.all([
+    creditcoinClient.readContract({ address: config.poolEngine, abi: ENGINE_ABI, functionName: "sharesOf", args: [account] }),
+    creditcoinClient.readContract({ address: config.poolEngine, abi: ENGINE_ABI, functionName: "assetsOf", args: [account] }),
+  ]);
+  return { shares: shares as bigint, assets: assets as bigint };
+}
+
+export async function owed(portfolioId: bigint): Promise<{ principal: bigint; interest: bigint }> {
+  const [principal, interest] = (await creditcoinClient.readContract({
+    address: config.poolEngine, abi: ENGINE_ABI, functionName: "owed", args: [portfolioId],
+  })) as readonly [bigint, bigint];
+  return { principal, interest };
+}
+
+export interface PoolState {
+  /** LP money: idle stablecoin plus principal lent out. */
+  totalAssets: bigint;
+  /** Available to draw or withdraw now. */
+  idle: bigint;
+  borrowed: bigint;
+  reserves: bigint;
+  utilizationBps: number;
+  borrowRateBps: number;
+  supplyRateBps: number;
+  reserveFactorBps: number;
+}
+
+export async function poolState(): Promise<PoolState> {
+  const read = (functionName: string) =>
+    creditcoinClient.readContract({ address: config.poolEngine, abi: ENGINE_ABI, functionName } as never) as Promise<bigint>;
+  const [totalAssets, idle, borrowed, reserves, util, borrowRate, supplyRate, reserveFactor] = await Promise.all([
+    read("totalAssets"), read("idleLiquidity"), read("totalBorrowed"), read("protocolReserves"),
+    read("utilizationBps"), read("borrowRateBps"), read("supplyRateBps"), read("reserveFactorBps"),
+  ]);
+  return {
+    totalAssets, idle, borrowed, reserves,
+    utilizationBps: Number(util), borrowRateBps: Number(borrowRate),
+    supplyRateBps: Number(supplyRate), reserveFactorBps: Number(reserveFactor),
+  };
 }
 
 export async function stablecoinBalance(account: Address): Promise<bigint> {
   return (await creditcoinClient.readContract({
     address: config.stablecoin, abi: ERC20_ABI, functionName: "balanceOf", args: [account],
-  })) as bigint;
-}
-
-export async function poolLiquidity(): Promise<bigint> {
-  return (await creditcoinClient.readContract({
-    address: config.stablecoin, abi: ERC20_ABI, functionName: "balanceOf", args: [config.poolEngine],
   })) as bigint;
 }
 

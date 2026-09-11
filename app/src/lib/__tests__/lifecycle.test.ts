@@ -122,6 +122,32 @@ describe("derive", () => {
   });
 });
 
+describe("derive — lender side and interest", () => {
+  const lp = (kind: "deposited" | "withdrawn", dollars: bigint): ProtocolEvent =>
+    ({ ...base(400), side: "creditcoin", kind, lp: OWNER, assets: dollars * M, shares: dollars * M * 1_000_000n });
+  const interest = (id: string, dollars: bigint): ProtocolEvent =>
+    ({ ...base(503), side: "creditcoin", kind: "interest", portfolioId: id, payer: OWNER, amount: dollars * M, toReserves: (dollars * M) / 4n });
+
+  it("keeps LP events out of portfolios and counts lenders", () => {
+    const v = derive([lp("deposited", 1_000_000n), lp("withdrawn", 100n)]);
+    expect(Object.keys(v.portfolios)).toHaveLength(0);
+    expect(v.lpEvents).toHaveLength(2);
+    expect(v.stats.lenders).toBe(1);
+  });
+
+  it("tracks interest separately from principal", () => {
+    const v = derive([
+      registered("7", 1), valued("7", 2, 1_000_000n), locked("7", 900, 1_000_000n), opened("7", 1_000_000n),
+      moved("drawn", "7", 100_000n), interest("7", 8_000n), moved("repaid", "7", 100_000n),
+    ]);
+    const line = v.portfolios["7"].activeLine!;
+    expect(line.drawn).toBe(0n); // principal repaid…
+    expect(line.interestPaid).toBe(8_000n * M);
+    expect(line.open).toBe(true); // …but only CreditLineClosed closes it
+    expect(v.stats.interestPaid).toBe(8_000n * M);
+  });
+});
+
 describe("creditFor", () => {
   it("applies the advance rate", () => {
     expect(creditFor(750_000n * M, params)).toBe(600_000n * M);

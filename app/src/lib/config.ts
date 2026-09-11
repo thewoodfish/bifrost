@@ -15,7 +15,7 @@ export const config = {
   ),
   poolEngine: addr(
     import.meta.env.VITE_POOL_ENGINE,
-    "0x33280d3558B174563a1CDd6590640Dd1C7e41a32",
+    "0xBD39e340a43A5693Ae55E0E77b707558Fe67F3e8",
   ),
   stablecoin: addr(
     import.meta.env.VITE_STABLECOIN,
@@ -27,7 +27,7 @@ export const config = {
    * contract, so starting earlier only costs RPC calls. Override alongside the addresses.
    */
   originVaultFromBlock: BigInt(import.meta.env.VITE_ORIGIN_VAULT_FROM_BLOCK || 11675595),
-  poolEngineFromBlock: BigInt(import.meta.env.VITE_POOL_ENGINE_FROM_BLOCK || 5464049),
+  poolEngineFromBlock: BigInt(import.meta.env.VITE_POOL_ENGINE_FROM_BLOCK || 5469076),
 
   /** Sepolia's chainKey on Attestcoin. Ethereum mainnet is 3; nothing else is attested. */
   chainKey: Number(import.meta.env.VITE_CHAIN_KEY ?? 1),

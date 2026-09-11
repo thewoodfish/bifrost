@@ -26,6 +26,7 @@ export function useLagSeconds(): number | null {
 
 const NAV = [
   { group: "Borrow", items: [{ to: "/app", label: "Dashboard", icon: Icon.Grid, match: ["app", "p"] }] },
+  { group: "Lend", items: [{ to: "/lend", label: "Lend", icon: Icon.Coins, match: ["lend"] }] },
   {
     group: "Protocol",
     items: [
@@ -185,6 +186,7 @@ const TITLES: Record<string, string> = {
   ledger: "Proof ledger",
   verify: "Proof ledger",
   valuer: "Valuation desk",
+  lend: "Lend",
 };
 
 function Crumbs({ route }: { route: string[] }) {

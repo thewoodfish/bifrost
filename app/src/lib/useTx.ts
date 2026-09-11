@@ -25,6 +25,9 @@ const COPY: Record<string, [pending: string, done: string]> = {
   open: ["Opening credit line", "Credit line opened"],
   draw: ["Drawing funds", "Funds sent to your wallet"],
   repay: ["Repaying", "Repayment settled"],
+  deposit: ["Depositing", "Deposited — you're earning"],
+  withdraw: ["Withdrawing", "Withdrawn to your wallet"],
+  mint: ["Minting test USDC", "100,000 tUSDC minted"],
 };
 
 /** The hash a write returned, whichever shape its action uses. */

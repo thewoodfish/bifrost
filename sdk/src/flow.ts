@@ -186,5 +186,19 @@ export async function drawDown(portfolioId: bigint, amount: bigint, log: (s: str
 }
 
 export async function creditLineOf(portfolioId: bigint) {
-  return (await engine()).getCreditLine(portfolioId);
+  const e = await engine();
+  const [line, [, interest], rate] = await Promise.all([
+    e.getCreditLine(portfolioId), e.owed(portfolioId), e.borrowRateBps(),
+  ]);
+  return { line, interest: interest as bigint, rateBps: rate as bigint };
+}
+
+/** The lender side: what LPs have in the pool, what is lent out, and what it earns. */
+export async function poolStats() {
+  const e = await engine();
+  const [assets, idle, borrowed, reserves, util, borrowRate, supplyRate, reserveFactor] = await Promise.all([
+    e.totalAssets(), e.idleLiquidity(), e.totalBorrowed(), e.protocolReserves(),
+    e.utilizationBps(), e.borrowRateBps(), e.supplyRateBps(), e.reserveFactorBps(),
+  ]);
+  return { assets, idle, borrowed, reserves, util, borrowRate, supplyRate, reserveFactor } as Record<string, bigint>;
 }

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ENGINE_ABI, VAULT_ABI } from "./abis";
-import { poolLiquidity } from "./actions";
+import { poolState, type PoolState } from "./actions";
 import { creditcoinClient, originClient } from "./clients";
 import { config } from "./config";
 import { cachedEvents, derive, scanAll, type ProtocolEvent, type ProtocolView } from "./indexer";
@@ -20,7 +20,9 @@ interface ProtocolState extends ProtocolView {
   synced: boolean;
   syncing: boolean;
   error: string | null;
+  /** Stablecoin available to draw or withdraw now (idle liquidity, reserves excluded). */
   liquidity: bigint | null;
+  pool: PoolState | null;
   params: Params | null;
   attestation: AttestationStatus;
   /** Rescan now — call after any write so every surface reflects it. */
@@ -36,7 +38,7 @@ export function ProtocolProvider({ children }: { children: React.ReactNode }) {
   const [synced, setSynced] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [liquidity, setLiquidity] = useState<bigint | null>(null);
+  const [pool, setPool] = useState<PoolState | null>(null);
   const [params, setParams] = useState<Params | null>(null);
   const attestation = useAttestationStatus();
   const inflight = useRef<Promise<void> | null>(null);
@@ -47,9 +49,9 @@ export function ProtocolProvider({ children }: { children: React.ReactNode }) {
     const run = (async () => {
       setSyncing(true);
       try {
-        const [evs, liq] = await Promise.all([scanAll(), poolLiquidity().catch(() => null)]);
+        const [evs, p] = await Promise.all([scanAll(), poolState().catch(() => null)]);
         setEvents(evs);
-        if (liq !== null) setLiquidity(liq);
+        if (p !== null) setPool(p);
         setError(null);
         setSynced(true);
       } catch (e) {
@@ -84,8 +86,8 @@ export function ProtocolProvider({ children }: { children: React.ReactNode }) {
   const view = useMemo(() => derive(events), [events]);
 
   const value = useMemo(
-    () => ({ ...view, events, synced, syncing, error, liquidity, params, attestation, sync }),
-    [view, events, synced, syncing, error, liquidity, params, attestation, sync],
+    () => ({ ...view, events, synced, syncing, error, liquidity: pool?.idle ?? null, pool, params, attestation, sync }),
+    [view, events, synced, syncing, error, pool, params, attestation, sync],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

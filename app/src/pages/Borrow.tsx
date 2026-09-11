@@ -13,14 +13,15 @@ import { ChainTag, Check, Empty, Icon, Notice, PhaseChip, Skeleton, Spinner, Sta
 
 /** Protocol-wide numbers, so a visitor without a wallet still lands on something real. */
 function PoolCard() {
-  const { liquidity, stats } = useProtocol();
+  const { liquidity, stats, pool } = useProtocol();
   const total = liquidity !== null ? liquidity + stats.outstanding : null;
   const util = total && total > 0n ? Number((stats.outstanding * 10_000n) / total) / 100 : 0;
+  const pct = (bps: number | undefined) => (bps === undefined ? "—" : `${(bps / 100).toFixed(2)}%`);
   return (
     <div className="card pad pool">
       <div className="card-head">
         <span className="card-title">Creditcoin pool</span>
-        <Link to="/ledger" className="card-link">Ledger <Icon.ArrowRight size={13} /></Link>
+        <Link to="/lend" className="card-link">Lend <Icon.ArrowRight size={13} /></Link>
       </div>
       <div className="pool-value num">{liquidity !== null ? usd(liquidity) : <Skeleton w={160} h={28} />}</div>
       <div className="dim small">available to borrow · TestUSDC</div>
@@ -28,6 +29,10 @@ function PoolCard() {
       <div className="util-legend small">
         <span><i className="sw sw-a" /> Lent {usdShort(stats.outstanding)}</span>
         <span className="dim">{util.toFixed(1)}% utilized</span>
+      </div>
+      <div className="pool-rates small">
+        <span>Borrow APR <strong className="num">{pct(pool?.borrowRateBps)}</strong></span>
+        <span>Lenders earn <strong className="num">{pct(pool?.supplyRateBps)}</strong></span>
       </div>
     </div>
   );
@@ -43,6 +48,9 @@ function feedLine(e: ProtocolEvent): { icon: React.ReactNode; text: React.ReactN
     case "drawn": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> drawn · #{e.portfolioId}</> };
     case "repaid": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> repaid · #{e.portfolioId}</> };
     case "closed": return { icon: <Check size={14} />, text: <>Line closed · #{e.portfolioId}</> };
+    case "interest": return { icon: <Icon.Pulse size={14} />, text: <><strong>{usd(e.amount)}</strong> interest paid · #{e.portfolioId}</> };
+    case "deposited": return { icon: <Icon.Plus size={14} />, text: <><strong>{usd(e.assets)}</strong> supplied by a lender</> };
+    case "withdrawn": return { icon: <Icon.ArrowLeft size={14} />, text: <><strong>{usd(e.assets)}</strong> withdrawn by a lender</> };
     default: return null;
   }
 }

@@ -10,6 +10,7 @@ type Item = { key: string; label: React.ReactNode; hint?: React.ReactNode; icon:
 const PAGES: Item[] = [
   { key: "home", label: "Home", icon: <Icon.Home size={15} />, to: "/", text: "home landing site" },
   { key: "app", label: "Dashboard", icon: <Icon.Grid size={15} />, to: "/app", text: "dashboard borrow credit console" },
+  { key: "lend", label: "Lend", icon: <Icon.Coins size={15} />, to: "/lend", text: "lend earn deposit withdraw lp yield pool" },
   { key: "ledger", label: "Proof ledger", icon: <Icon.Ledger size={15} />, to: "/ledger", text: "ledger proofs positions locks lines" },
   { key: "valuer", label: "Valuation desk", icon: <Icon.Scale size={15} />, to: "/valuer", text: "valuation desk valuer price" },
 ];

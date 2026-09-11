@@ -86,6 +86,22 @@ export const ENGINE_ABI = [
   { type: "function", name: "expectedChainKey", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "maxLockAge", stateMutability: "view", inputs: [], outputs: [{ type: "uint64" }] },
   { type: "function", name: "lockAge", stateMutability: "view", inputs: [{ name: "height", type: "uint64" }], outputs: [{ type: "uint64" }] },
+  // Lender side
+  { type: "function", name: "deposit", stateMutability: "nonpayable", inputs: [{ name: "assets", type: "uint256" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "withdraw", stateMutability: "nonpayable", inputs: [{ name: "assets", type: "uint256" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "redeem", stateMutability: "nonpayable", inputs: [{ name: "shares", type: "uint256" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "totalAssets", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "idleLiquidity", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "totalBorrowed", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "protocolReserves", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "totalShares", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "sharesOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "assetsOf", stateMutability: "view", inputs: [{ name: "", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "utilizationBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "borrowRateBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "supplyRateBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "reserveFactorBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "owed", stateMutability: "view", inputs: [{ name: "portfolioId", type: "uint256" }], outputs: [{ name: "principal", type: "uint256" }, { name: "interest", type: "uint256" }] },
   { type: "function", name: "usedReceipt", stateMutability: "view", inputs: [{ name: "", type: "bytes32" }], outputs: [{ type: "bool" }] },
   {
     type: "function", name: "getCreditLine", stateMutability: "view",
@@ -123,6 +139,9 @@ export const ENGINE_EVENTS = parseAbi([
   "event Drawn(address indexed borrower, uint256 indexed portfolioId, uint256 amount)",
   "event Repaid(address indexed borrower, uint256 indexed portfolioId, uint256 amount)",
   "event CreditLineClosed(uint256 indexed portfolioId)",
+  "event InterestPaid(address indexed payer, uint256 indexed portfolioId, uint256 interest, uint256 toReserves)",
+  "event Deposited(address indexed lp, uint256 assets, uint256 shares)",
+  "event Withdrawn(address indexed lp, uint256 assets, uint256 shares)",
 ]);
 
 /** BlockProver precompile, read-only form. Struct order is load-bearing: root before siblings. */
@@ -176,4 +195,6 @@ export const ERC20_ABI = [
   { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "", type: "address" }, { name: "", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  /** TestUSDC only: unrestricted mint, so anyone trying the lender flow can get test funds. */
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
 ] as const;

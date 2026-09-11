@@ -236,6 +236,7 @@ function describe(e: ProtocolEvent): React.ReactNode {
     case "drawn": return <>Drew <strong>{usd(e.amount)}</strong></>;
     case "repaid": return <>Repaid <strong>{usd(e.amount)}</strong></>;
     case "closed": return <>Line repaid in full and closed</>;
+    case "interest": return <>Paid <strong>{usd(e.amount)}</strong> interest</>;
     default: return null;
   }
 }
