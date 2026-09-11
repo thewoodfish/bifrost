@@ -160,9 +160,26 @@ Bifrost. <break time="0.4s" /> Your loan book is already collateral. Proven by A
 
 ---
 
-## Merging (once the audio is back)
+## Merging
 
-With ffmpeg, per-scene audio named `01.mp3` … `12.mp3`, each placed at its scene start:
+**Done for the take we have** — one generation of the fallback above (Jane, Eleven v3,
+2:55.9):
+
+```bash
+cd submission && python3 tools/sync.py ~/Downloads/ElevenLabs_…_v3.mp3   # -> bifrost-submission.mp4
+```
+
+v3 ignores `<break>` tags, so the take's pauses don't land on the cuts: laid straight over
+the video it drifts up to 1.7 s late and runs 2.5 s past the end. `tools/sync.py` cuts it
+into phrases at its silences, puts each scene's first line on its cut and a few lines on
+their moments ("True." on `verify()`, "put the real value back" on the accepted value),
+and trims long pauses. It also holds two frames that are already still, 0.8 s in the code
+scene and 1.5 s on the end card, so the output is 2:55.7. Every scene's narration starts
+within 0.7 s of its cut. The narration is loudness-normalized to -16 LUFS. The cues are
+timestamps in this take; a new take needs them re-read (the script prints the phrase
+starts if one doesn't match).
+
+For per-scene clips instead (`01.mp3` … `12.mp3`), place each at its scene start:
 
 ```bash
 ffmpeg -i bifrost-demo.mp4 \
@@ -177,5 +194,4 @@ ffmpeg -i bifrost-demo.mp4 \
   -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest bifrost-submission.mp4
 ```
 
-The delays are the scene start times in milliseconds from `timeline.json`. Or hand me the
-12 files and I'll do the merge and check the sync.
+The delays are the scene start times in milliseconds from `timeline.json`.
