@@ -7,6 +7,17 @@ export function usd(v: bigint | undefined | null): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
+/**
+ * For interest and earnings, which start tiny: "$0.0152" and "$12.40", not "$0". Amounts
+ * of $1,000 and up read as whole dollars like everywhere else.
+ */
+export function usdFine(v: bigint | undefined | null): string {
+  if (v === undefined || v === null) return "—";
+  const n = Number(formatUnits(v, config.decimals));
+  const digits = n === 0 ? 0 : n < 1 ? 4 : n < 1000 ? 2 : 0;
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
 /** "$750k", "$1.2M" — for headlines and dense rows where the exact figure is a click away. */
 export function usdShort(v: bigint | undefined | null): string {
   if (v === undefined || v === null) return "—";

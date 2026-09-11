@@ -42,26 +42,23 @@ was resent with `cast send --gas-limit`. Pass `--gas-estimate-multiplier 200` to
 
 ## Demo state
 
-Portfolios seeded on the live deployment, so a demo never has to wait out an attestation
-cold. Attestation is 8-20 min, so a portfolio in the "ready to open" state cannot be
-created on stage — it has to be locked beforehand.
+As of 2026-09-11 ~12:15 UTC. Attestation is 8-20 min, so a portfolio in the "ready to
+claim" state cannot be created on stage — lock it beforehand.
 
 | Portfolio | Value | State | Lock tx |
 |---|---|---|---|
-| 2001 | $750,000 | locked, awaiting open — **the live demo step** | `0xa551daeb…ad0e155b` (block 11675614) |
-| 2000 | $300,000 | locked and attested, **never opened** | `0xabf9d584…0fd96d0b` (block 11675618) |
+| 3001 | $500,000 | locked and attested, **unclaimed — the live demo step** | `0x4796af22…377c6432` (block 11681749) |
+| 2000 | $300,000 | **active line**, opened from the portal (Rabby): $240,000 limit, drew $100,000, repaid $25,000 ($0.0152 interest, then principal) | `0xabf9d584…0fd96d0b` (block 11675618) |
+| 2001 | $750,000 | locked and attested, unclaimed | `0xa551daeb…ad0e155b` (block 11675614) |
 
-Locked both on 2026-09-10. Leave 2001 unopened: `attestAndOpenCredit` consumes the
-receipt permanently, so opening it burns the demo. To reset, lock a fresh id:
-`npm run bifrost -- lock <newId> <usd>`.
+Leave 3001 unopened: `attestAndOpenCredit` consumes the receipt permanently, so opening it
+burns the demo. To reset, lock a fresh id: `npm run bifrost -- lock <newId> <usd>`, then
+wait for attestation (`npm run bifrost -- status`).
 
-Portfolio 2000 was meant to show a full lifecycle, but as of 2026-09-10 the engine had
-emitted no events at all since deploy and `getCreditLine(2000)` is empty — it was never
-opened. Opening, drawing and repaying it is what would give the ledger a live line.
-
-**Both locks expire.** `maxLockAge` is 7200 source blocks, so neither can be claimed once
-the attestation frontier passes block ~11,682,814 — around 15:00 UTC on 2026-09-11. After
-that the portal shows "Claim window closed"; lock fresh ids before any demo past then.
+**Claim windows.** `maxLockAge` is 7200 source blocks past attestation. 2001 stops being
+claimable once the frontier passes block ~11,682,814 (around 15:30 UTC 2026-09-11); 3001
+at ~11,688,949 (around 12:00 UTC 2026-09-12). Lock fresh ids before any demo past then.
+2000's line is already open, so its window no longer matters.
 
 ## Retired
 

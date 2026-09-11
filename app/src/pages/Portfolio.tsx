@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lockPortfolio, previewOpen, submitOpen, type PreviewResult } from "../lib/actions";
 import { creditcoin, origin } from "../lib/chains";
 import { SEPOLIA_BLOCK_SECONDS } from "../lib/config";
-import { ago, dateTime, duration, usd } from "../lib/format";
+import { ago, dateTime, duration, usd, usdFine } from "../lib/format";
 import type { PortfolioRecord, ProtocolEvent } from "../lib/indexer";
 import { creditFor, phaseOf, type PhaseInfo } from "../lib/phase";
 import { verifyOnCreditcoin } from "../lib/proof";
@@ -236,7 +236,7 @@ function describe(e: ProtocolEvent): React.ReactNode {
     case "drawn": return <>Drew <strong>{usd(e.amount)}</strong></>;
     case "repaid": return <>Repaid <strong>{usd(e.amount)}</strong></>;
     case "closed": return <>Line repaid in full and closed</>;
-    case "interest": return <>Paid <strong>{usd(e.amount)}</strong> interest</>;
+    case "interest": return <>Paid <strong>{usdFine(e.amount)}</strong> interest</>;
     default: return null;
   }
 }

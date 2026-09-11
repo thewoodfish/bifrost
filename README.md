@@ -12,7 +12,8 @@
 <p align="center">
   <img alt="Live on testnet" src="https://img.shields.io/badge/live-Sepolia%20%E2%86%92%20Creditcoin%20CC3-14b877" />
   <img alt="Attestcoin" src="https://img.shields.io/badge/verified%20by-Attestcoin%20BlockProver-8457e8" />
-  <img alt="Tests" src="https://img.shields.io/badge/forge%20tests-55%20passing-0e8a5c" />
+  <img alt="Contract tests" src="https://img.shields.io/badge/forge%20tests-78%20passing-0e8a5c" />
+  <img alt="Portal tests" src="https://img.shields.io/badge/portal%20tests-38%20passing-0e8a5c" />
   <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-5563f0" />
 </p>
 
@@ -139,6 +140,9 @@ in the proven receipt, and every field must match what the receipt says.
 | Log from a look-alike contract | Only `PortfolioLocked` emitted by the configured vault counts | `LockLogNotFound` |
 | Proof from another chain | `chainKey` pinned at deploy | `BadChainKey` |
 | Over-lend | LTV hard-capped at 80%; freshness windows tunable but never switchable off | `LtvTooHigh`, `BadLockAge` |
+| Inflate LP share price to steal the next deposit | Virtual share offset: the attacker loses far more than the victim (tested) | — |
+| Lend out money that isn't the pool's | Draws and LP exits are bounded by idle liquidity, which excludes protocol reserves | `InsufficientLiquidity` |
+| Walk away from interest | Repayments cover interest first; a line closes only when principal *and* interest are zero | — |
 
 **Don't take our word for it.** Open any position's verify page and your browser
 fetches the proof, decodes the receipt, and asks the precompile itself. Then rewrite the
@@ -171,6 +175,14 @@ directly, with no backend. Every number you see comes from the chains.
     <td><b>Proof ledger.</b> Every lock and every line, public. For an LP it's the pool's book; for anyone else it's "every dollar is backed by a proof", made checkable one row at a time.</td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/line.png" alt="Active credit line with live interest" /></td>
+    <td><img src="docs/screenshots/lend.png" alt="Lend page" /></td>
+  </tr>
+  <tr>
+    <td><b>Active line.</b> Portfolio 2000's real line, opened from the portal: what's free, principal plus interest ticking per second at 8% APR, draw and repay with interest paid first.</td>
+    <td><b>Lend.</b> Lenders supply stablecoins for shares and earn what borrowers pay, minus the protocol's 25% reserve factor. The $0.0114 earned here is 75% of the first $0.0152 of real interest.</td>
+  </tr>
+  <tr>
     <td><img src="docs/screenshots/palette.png" alt="Command palette" /></td>
     <td><img src="docs/screenshots/mobile.png" alt="Mobile views" /></td>
   </tr>
@@ -181,9 +193,9 @@ directly, with no backend. Every number you see comes from the chains.
 </table>
 
 Also included: a **valuation desk** for independent valuers (a freshness-ranked queue),
-transaction toasts that survive navigation, automatic chain switching (it adds CC3 to
-your wallet on first use), and a live **proof-in-transit** view driven by the real
-attestation frontier.
+a wallet picker that finds every installed wallet (EIP-6963), transaction toasts that
+survive navigation, automatic chain switching (it adds CC3 to your wallet on first use),
+and a live **proof-in-transit** view driven by the real attestation frontier.
 
 ## Live deployment
 
@@ -199,9 +211,14 @@ Vault deployed 2026-09-10; pool redeployed 2026-09-11 with the lender side. Full
 **Proven end to end on real proofs.** On the first deployment, portfolio 1042 was locked
 at $250,000 on Sepolia, attested at height 11,664,110, opened a $200,000 line on
 Creditcoin and drew $50,000. A replay of the same receipt was rejected. The decoder needed
-no changes for a genuine Sepolia receipt. On the current deployment, portfolios 2000
-($300k) and 2001 ($750k) are locked, attested and verify live. They are the claimable
-demo positions in the portal.
+no changes for a genuine Sepolia receipt.
+
+On the current deployment the whole borrower lifecycle has run **from the portal**, with
+a real wallet: portfolio 2000's attested $300,000 lock opened a $240,000 line, drew
+$100,000, and repaid $25,000, which paid the accrued interest first (25% of it to
+protocol reserves, the rest to lenders) and the remainder as principal. Portfolio 3001
+($500,000) is locked, attested and deliberately left unclaimed as the live demo step.
+Current demo state and claim windows are in [`docs/addresses.md`](docs/addresses.md#demo-state).
 
 ## Run it
 
@@ -219,7 +236,7 @@ needed.
 # Contracts
 cd contracts
 forge build
-forge test                                  # 55 tests, incl. a real attested Sepolia receipt
+forge test                                  # 78 tests, incl. a real attested Sepolia receipt
 
 # SDK / CLI: the full lifecycle from a terminal
 cd sdk && npm install
@@ -227,7 +244,11 @@ npm run bifrost -- status                   # attested chains + live attestation
 npm run bifrost -- lock 3001 500000         # register, value (valuer key), lock on Sepolia
 npm run bifrost -- open <lockTxHash>        # wait for attestation, prove, dry-run, open
 npm run bifrost -- draw 3001 100000
-npm run bifrost -- line 3001
+npm run bifrost -- line 3001                # principal, interest owed, APR
+npm run bifrost -- pool                     # LP assets, utilization, lender APR
+
+# Portal tests: decoder against a real attested Bifrost lock, prover client, lifecycle
+cd app && npm test                          # 38 tests
 ```
 
 The SDK and deploy scripts read `.env` (copy [`.env.example`](.env.example)). Signers are
@@ -241,15 +262,16 @@ smooth demo, set `VITE_SEPOLIA_RPC_URL` to a dedicated endpoint; the public one 
 ```
 contracts/          Foundry project (via_ir, evm_version = london)
   src/RWAOriginVault.sol          escrow + role separation + valuation freshness
-  src/CreditcoinPoolEngine.sol    proof-gated credit lines, draw, repay
+  src/CreditcoinPoolEngine.sol    proof-gated credit lines, interest, LP shares, reserves
   src/lib/AttestedTx.sol          decoder for Attestcoin's encoded-tx envelope
   src/interfaces/                 BlockProver + ChainInfo precompile interfaces
-  test/                           55 tests; fixtures/ holds a real attested receipt
+  test/                           78 tests; fixtures/ holds a real attested receipt
 sdk/                TypeScript CLI: lock → wait for attestation → prove → open → draw
 app/                React + viem portal, no backend
   src/lib/indexer.ts              browser-side event indexer over both chains
   src/lib/proof.ts                receipt decoder mirroring AttestedTx.sol + forge demo
   src/lib/phase.ts                one lifecycle state machine every screen reads
+  src/lib/__tests__/              vitest suite; fixtures from the live prover
 docs/               addresses, deployment runbook, screenshots
 ```
 
@@ -257,9 +279,9 @@ docs/               addresses, deployment runbook, screenshots
 
 Bifrost is asset-light middleware. It never lends its own balance sheet.
 
-- **Origination fee:** 0.25–0.50% of line value at execution (a $10M line earns $25–50k).
-- **Rate spread:** LPs earn about 6%, borrowers pay about 8%, and the protocol keeps roughly 2%.
-- **Attestation and settlement fees:** per cross-chain message, shared with validator incentives.
+- **Rate spread, enforced on-chain.** Borrowers pay 8% APR on what they draw; a 25% reserve factor sends a quarter of every interest payment to the protocol, and the rest raises the value of LP shares. At full utilization that is ~8% / ~6% / ~2%. Both rates are admin-tunable within hard caps.
+- **Origination fee** *(planned)*: 0.25–0.50% of line value at execution (a $10M line earns $25–50k).
+- **Attestation and settlement fees** *(planned)*: per cross-chain message, shared with validator incentives.
 
 **Go-to-market.** Supply comes from RWA tokenization platforms (Plume, Centrifuge,
 Goldfinch) whose compliant originators want cheaper liquidity. Demand comes from the
@@ -271,11 +293,11 @@ that is stranded on other chains.
 
 We'd rather list these than have you find them.
 
-- **No lender side yet.** The pool was funded by minting test USDC. There's no deposit or withdrawal for liquidity providers, so the LP yield in the business model is a design, not yet a feature.
-- **No interest, health factor or liquidation.** The 80% LTV buffer is enforced when a line opens and never re-checked. A position that goes underwater against a later valuation isn't caught on-chain.
+- **No health factor or liquidation.** The 80% LTV buffer is enforced when a line opens and never re-checked. A position that goes underwater against a later valuation isn't caught on-chain.
+- **Undrawn credit isn't reserved, and rates are fixed.** Lenders can withdraw idle liquidity that open lines haven't drawn yet, so a draw can fail with `InsufficientLiquidity`. The borrow rate is a flat 8%, not utilization-based.
 - **Escrow release is admin-gated.** Repayment on Creditcoin isn't visible from Sepolia, so the vault admin unlocks the portfolio.
 - **One origin chain.** Sepolia is the only testnet Attestcoin attests, and the engine pins one `chainKey` and one vault at deploy.
-- **The portal is unaudited and has no test suite.** Its read paths and pre-flight checks are verified against the live deployment. Lines have been opened and drawn via the SDK, but not yet from the portal UI.
+- **Unaudited.** Contracts have 78 tests and the portal 38; claim, draw and repay have run from the portal against the live pool. None of it has been audited.
 - **Production needs** KYC/AML partners and institutional custody (Fireblocks, BitGo).
 
 ## What's next
@@ -285,7 +307,7 @@ Ordered by how much deeper each one takes the Attestcoin integration.
 1. **Re-attested valuations for live collateral health.** This is buildable on today's Attestcoin. A valuer revalues a locked portfolio on Sepolia, the new valuation is attested and proven to the engine, and the engine shrinks the credit limit or halts draws when the line is over its LTV. Attestcoin goes from a one-time gate to continuous collateral monitoring, and "drawdowns halt automatically" becomes something a proof enforces. The vault needs a `PortfolioRevalued` event for locked portfolios, alongside the frozen lock value.
 2. **Many origin chains.** A vault on each chain, and an engine that accepts a set of `(chainKey, vault)` pairs instead of one immutable pair. Ethereum mainnet (key 3) is already attested; Base, Plume and others follow as Attestcoin adds them.
 3. **Proven settlement back to the origin chain.** Once Creditcoin state can be verified on the origin chain, the vault releases escrow on a proof that the line was repaid, which removes the last admin key from the lifecycle. This needs Creditcoin → origin attestation from Attestcoin; today it runs one way.
-4. **The lender side, on-chain.** Share-based LP deposits and withdrawals, utilization-based interest, and the origination fee, so the business model runs as code.
+4. **Pricing and liquidity management.** Utilization-based rates, liquidity reserved for undrawn commitments, and the origination fee, on top of the LP shares and reserve factor already live.
 
 ## License
 

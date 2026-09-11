@@ -154,3 +154,13 @@ describe("creditFor", () => {
     expect(creditFor(750_000n * M, null)).toBe(600_000n * M); // defaults to 80%
   });
 });
+
+describe("usdFine", () => {
+  it("keeps small interest visible instead of rounding to $0", async () => {
+    const { usdFine } = await import("../format");
+    expect(usdFine(15_220n)).toBe("$0.0152");
+    expect(usdFine(12_400_000n)).toBe("$12.40");
+    expect(usdFine(8_000_000_000n)).toBe("$8,000");
+    expect(usdFine(0n)).toBe("$0");
+  });
+});

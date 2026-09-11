@@ -3,7 +3,7 @@ import { formatUnits, parseUnits } from "viem";
 import { deposit, lpPosition, mintTestUsdc, redeemAll, stablecoinBalance, withdraw } from "../lib/actions";
 import { creditcoin } from "../lib/chains";
 import { config } from "../lib/config";
-import { ago, usd, usdShort } from "../lib/format";
+import { ago, usd, usdFine, usdShort } from "../lib/format";
 import { useProtocol } from "../lib/protocol";
 import { Link } from "../lib/router";
 import { useTx } from "../lib/useTx";
@@ -119,7 +119,7 @@ function Position() {
           <div className="account-balance num">{pos ? usd(pos.assets) : <Skeleton w={200} h={48} />}</div>
           <div className="muted small">
             {pos && pos.assets > 0n ? (
-              <>{usd(netDeposited > 0n ? netDeposited : 0n)} deposited · <span className="ok-text">+{usd(earned)} earned</span> · earning {pct(pool?.supplyRateBps)} now</>
+              <>{usd(netDeposited > 0n ? netDeposited : 0n)} deposited · <span className="ok-text">+{usdFine(earned)} earned</span> · earning {pct(pool?.supplyRateBps)} now</>
             ) : (
               "No deposit yet"
             )}
@@ -231,7 +231,7 @@ export function Lend() {
         <div className="card kpi"><Stat label="Supplied by lenders" icon={<Icon.Coins size={14} />} value={pool ? usdShort(pool.totalAssets) : "—"} note={`${stats.lenders} lender${stats.lenders === 1 ? "" : "s"}`} /></div>
         <div className="card kpi"><Stat label="Lent out" icon={<Icon.Layers size={14} />} value={pool ? usdShort(pool.borrowed) : "—"} note={`${pct(pool?.utilizationBps)} utilized`} /></div>
         <div className="card kpi kpi-hero"><Stat label="Lender APR now" icon={<Icon.Pulse size={14} />} value={pct(pool?.supplyRateBps)} note={`Borrowers pay ${pct(pool?.borrowRateBps)}`} /></div>
-        <div className="card kpi"><Stat label="Interest paid" icon={<Icon.Bolt size={14} />} value={usd(stats.interestPaid)} note="By borrowers, to date" /></div>
+        <div className="card kpi"><Stat label="Interest paid" icon={<Icon.Bolt size={14} />} value={usdFine(stats.interestPaid)} note="By borrowers, to date" /></div>
       </div>
 
       <div className="dash-grid">

@@ -8,7 +8,7 @@ Guidance for Claude Code when working in this repository.
 
 **Contracts deployed and validated end-to-end; the portal is built and driving them.**
 `contracts/` is a Foundry project with the origin vault, the Creditcoin pool engine, a
-receipt decoder, and 40 passing tests. Live on Sepolia and CC3 testnet as of 2026-09-08 —
+receipt decoder, and 78 passing tests. Live on Sepolia and CC3 testnet (vault 2026-09-10, pool with the lender side 2026-09-11) —
 addresses in `docs/addresses.md`. `app/` is the React portal, verified against the live
 deployment as of 2026-09-09.
 
@@ -203,7 +203,7 @@ attestation lag in the UI rather than a fake progress bar.
 cd contracts
 
 forge build            # compile (via_ir enabled; needed for engine stack depth)
-forge test             # 55 tests
+forge test             # 78 tests
 forge test -vvv        # with traces
 forge fmt              # format
 
@@ -224,7 +224,8 @@ cd sdk && npm install
 npm run bifrost -- status              # supported chains + live attestation lag
 npm run bifrost -- lock 1042 250000    # register, value, lock on Sepolia
 npm run bifrost -- open <txHash>       # wait for attestation, prove, open credit
-npm run bifrost -- line 1042
+npm run bifrost -- line 1042          # principal, interest owed, APR
+npm run bifrost -- pool               # LP assets, utilization, rates
 ```
 
 ### Portal
@@ -234,6 +235,7 @@ cd app && npm install
 npm run dev          # http://localhost:5173
 npm run build        # tsc -b && vite build
 npm run typecheck
+npm test             # 38 vitest tests; fixtures captured from the live prover
 ```
 
 No backend: the portal reads both chains over RPC and calls the prover directly, which
@@ -245,10 +247,12 @@ and `VITE_POOL_ENGINE_FROM_BLOCK` (the deploy blocks the indexer starts from).
 `#/` is a standalone marketing page (live metrics, a real position as the hero shot); every
 other route renders inside `components/AppShell.tsx` — sidebar with the live attestation
 widget, breadcrumbed topbar, ⌘K palette (`CommandPalette.tsx`), and transaction toasts
-(`lib/toast.tsx`, fed by `useTx`). Light theme only, Geist; the indigo → violet → amber spectrum
+(`lib/toast.tsx`, fed by `useTx`), and an EIP-6963 wallet picker (`WalletPicker.tsx`) —
+the chosen wallet is remembered by rdns, never whichever extension owns `window.ethereum`. Light theme only, Geist; the indigo → violet → amber spectrum
 is the brand and is reserved for proofs moving between chains.
 
-Hash-routed surfaces, one per persona: `#/` landing,
+Hash-routed surfaces, one per persona: `#/` landing, `#/lend` the lender page (deposit,
+withdraw, live lender APR),
 `#/app` borrower console (portfolios found by owner — no ids to type), `#/p/:id` the
 portfolio, driven by one `phase` (`lib/phase.ts`) from offer → proof in transit → claim →
 active line, `#/valuer` the valuation desk, `#/ledger` every lock and line, and
@@ -273,10 +277,13 @@ originator from valuer, valuation freshness is bounded on both sides (below), an
 naming is settled — the protocol is Bifrost, and no `intersect.fi` reference survives
 anywhere in the tree.
 
-> **The contracts are ahead of the deployed addresses.** Valuation freshness landed after
-> the 2026-09-08 deploy, so the live vault and engine in `docs/addresses.md` do not
-> enforce it. Redeploying means new addresses and re-seeding the demo state, since
-> `originVault` is immutable on the engine.
+The deployment matches the code: the vault (2026-09-10) enforces valuation freshness, and
+the pool engine (redeployed 2026-09-11) adds the lender side on top of lock freshness —
+LP shares with a virtual-share offset, simple interest on drawn principal (8% APR), and a
+25% reserve factor to protocol reserves. Interest is tracked beside `CreditLine`, whose
+layout is unchanged; `Repaid` carries principal only and `InterestPaid` the interest.
+The vault is immutable on the engine, so an engine-only redeploy keeps existing locks
+claimable.
 
 Still open:
 
@@ -284,28 +291,28 @@ Still open:
    `get_supported_chains()`: only Ethereum mainnet (key 3) and Sepolia (key 1) are
    attested. Base/Plume are not supported at all — treat multi-chain origin as a request
    to Gluwa, not a roadmap item you can build.
-2. **Deployed, and the decoder survived a real receipt.** Both chains are live
-   (`docs/addresses.md`). Portfolio 1042 locked at $250,000 on Sepolia, attested at height
-   11664110, opened a $200,000 line on CC3 and drew $50,000; a replayed receipt was
-   rejected. The decoder needed no changes for a genuine Sepolia receipt.
+2. **Proven end to end, from the SDK and from the portal.** Portfolio 1042 (first
+   deployment) opened a $200,000 line from a real attested receipt via the SDK; a replay
+   was rejected. On the current deployment, portfolio 2000 was claimed, drawn ($100,000)
+   and partly repaid ($25,000, interest first) from the portal with Rabby on 2026-09-11.
    The vault is verified on Sepolia Etherscan; CC3 offers no explorer verification.
-3. **Portal is read/write complete but unaudited.** `app/` drives the full lifecycle —
-   register, value, lock, watch attestation, preview, open, draw, repay. The 2026-09-10
-   rebuild was checked in a headless browser against the live deployment — landing,
-   ledger, valuation desk, portfolio 2001's claim checks, and the verify page including
-   the forged-value rejection — but no write was sent from it, so the offer, in-transit,
-   active-line and repaid screens are unexercised against real state. It has no tests.
+3. **Unaudited.** 78 Foundry tests, 38 portal tests (decoder against a real attested
+   Bifrost lock captured from the prover). The portal's deposit/withdraw path has not yet
+   been sent from a real wallet; claim, draw and repay have.
 4. **`unlockPortfolio` is admin-gated, not proven.** Creditcoin settlement isn't observable
    from Sepolia. Symmetric attestation (Creditcoin -> origin) would close the loop.
-5. **No interest accrual, health factor, or liquidation.** The LTV buffer is enforced only
-   at open. A position that goes underwater against a later valuation is not enforced
-   on-chain.
-6. **Freshness is bounded in code, not yet on chain.** Two controls, 55 tests:
-   `RWAOriginVault.maxValuationAge` (default 7 days) rejects a lock whose valuation has
-   gone stale, and `CreditcoinPoolEngine.maxLockAge` (default 7200 source blocks) rejects
-   a proof whose lock the attestation frontier has left behind. Both are admin-tunable
-   between hard bounds but cannot be switched off, mirroring `MAX_LTV_BPS`. Not deployed
-   — see the note above.
+5. **No health factor or liquidation.** The LTV buffer is enforced only at open. A position
+   that goes underwater against a later valuation is not enforced on-chain. Re-attested
+   valuations (a `PortfolioRevalued` event proven to the engine) are the planned fix.
+6. **Undrawn credit isn't reserved; rates are fixed.** LP exits can take idle liquidity an
+   open line hasn't drawn, so a draw can fail `InsufficientLiquidity`. The borrow rate is a
+   flat admin-set APR, not utilization-based.
+7. **CC3 gas differs from Foundry's simulation.** Storage writes cost more on CC3; a
+   `forge script` step can run out of gas at the default estimate. Use
+   `--gas-estimate-multiplier 200` (see `docs/DEPLOYMENT.md`).
+8. **Under `via_ir`, tests must track time themselves.** `block.timestamp` can read stale
+   after a state-changing call, silently turning a second `vm.warp` into a no-op; the
+   lending tests keep their own clock.
 ## 10. Business context
 
 Useful when writing pitch material, docs, or demo narration.
@@ -313,7 +320,7 @@ Useful when writing pitch material, docs, or demo narration.
 **Model.** Bifrost is asset-light middleware — it builds the contracts and verification
 pipeline, it does not lend its own balance sheet. Revenue:
 - **Origination fee:** 0.25–0.50% of credit line value at execution (a $10M line → $25–50k).
-- **Interest rate spread:** LPs demand ~6%, borrowers pay ~8%; the protocol captures the ~2%.
+- **Interest rate spread (live on-chain):** borrowers pay 8% APR; a 25% reserve factor keeps ~2% for the protocol and ~6% goes to LPs at full utilization.
 - **Settlement / attestation fees:** per cross-chain message, split with validator incentives.
 
 **Positioning.** Traditional off-chain private credit deals take 3–6 months of legal

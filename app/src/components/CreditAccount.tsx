@@ -3,7 +3,7 @@ import { formatUnits, parseUnits } from "viem";
 import { draw, owed, repay, stablecoinBalance } from "../lib/actions";
 import { creditcoin } from "../lib/chains";
 import { config } from "../lib/config";
-import { usd } from "../lib/format";
+import { usd, usdFine } from "../lib/format";
 import { useProtocol } from "../lib/protocol";
 import type { CreditLine } from "../lib/usePortfolio";
 import { useTx } from "../lib/useTx";
@@ -13,10 +13,6 @@ import { Check, Notice, Spinner } from "./ui";
 
 type Mode = "draw" | "repay";
 
-/** Interest is small and moving, so it shows cents; everything else rounds to dollars. */
-function usdCents(v: bigint): string {
-  return (Number(v) / 10 ** config.decimals).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const YEAR = 365 * 86_400;
 /** Headroom on "pay in full": interest keeps accruing between reading it and mining. The
@@ -121,7 +117,7 @@ export function CreditAccount({
           {(line.drawn > 0n || (interest ?? 0n) > 0n) && (
             <div className="owed small">
               Owed <strong className="num">{usd(line.drawn)}</strong> principal
-              {" + "}<strong className="num">{interest === null ? "…" : usdCents(interest)}</strong> interest
+              {" + "}<strong className="num">{interest === null ? "…" : usdFine(interest)}</strong> interest
               <span className="dim"> · {(rateBps / 100).toFixed(2)}% APR, accruing per second</span>
             </div>
           )}
@@ -172,7 +168,7 @@ export function CreditAccount({
               </button>
             ))}
             <span className="dim small presets-note">
-              {mode === "draw" ? `Up to ${usd(available)}` : `${usdCents(debt)} to close the line`}
+              {mode === "draw" ? `Up to ${usd(available)}` : `${usdFine(debt)} to close the line`}
               {balance !== null && ` · wallet holds ${usd(balance)}`}
             </span>
           </div>

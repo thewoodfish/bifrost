@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { registerPortfolio } from "../lib/actions";
 import { origin } from "../lib/chains";
-import { ago, duration, usd, usdShort } from "../lib/format";
+import { ago, duration, usd, usdFine, usdShort } from "../lib/format";
 import { chronological, type ProtocolEvent } from "../lib/indexer";
 import { creditFor, PHASE_META, phaseOf } from "../lib/phase";
 import { useProtocol } from "../lib/protocol";
@@ -48,7 +48,7 @@ function feedLine(e: ProtocolEvent): { icon: React.ReactNode; text: React.ReactN
     case "drawn": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> drawn · #{e.portfolioId}</> };
     case "repaid": return { icon: <Icon.Coins size={14} />, text: <><strong>{usd(e.amount)}</strong> repaid · #{e.portfolioId}</> };
     case "closed": return { icon: <Check size={14} />, text: <>Line closed · #{e.portfolioId}</> };
-    case "interest": return { icon: <Icon.Pulse size={14} />, text: <><strong>{usd(e.amount)}</strong> interest paid · #{e.portfolioId}</> };
+    case "interest": return { icon: <Icon.Pulse size={14} />, text: <><strong>{usdFine(e.amount)}</strong> interest paid · #{e.portfolioId}</> };
     case "deposited": return { icon: <Icon.Plus size={14} />, text: <><strong>{usd(e.assets)}</strong> supplied by a lender</> };
     case "withdrawn": return { icon: <Icon.ArrowLeft size={14} />, text: <><strong>{usd(e.assets)}</strong> withdrawn by a lender</> };
     default: return null;
