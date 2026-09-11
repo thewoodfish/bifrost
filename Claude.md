@@ -242,7 +242,13 @@ override with `VITE_ORIGIN_VAULT`, `VITE_POOL_ENGINE`, `VITE_STABLECOIN`,
 `VITE_PROVER_URL`, `VITE_CHAIN_KEY` — and, on any redeploy, `VITE_ORIGIN_VAULT_FROM_BLOCK`
 and `VITE_POOL_ENGINE_FROM_BLOCK` (the deploy blocks the indexer starts from).
 
-Hash-routed surfaces, one per persona: `#/` landing (live stats and a real position),
+`#/` is a standalone marketing page (live metrics, a real position as the hero shot); every
+other route renders inside `components/AppShell.tsx` — sidebar with the live attestation
+widget, breadcrumbed topbar, ⌘K palette (`CommandPalette.tsx`), and transaction toasts
+(`lib/toast.tsx`, fed by `useTx`). Dark theme, Geist; the indigo → violet → amber spectrum
+is the brand and is reserved for proofs moving between chains.
+
+Hash-routed surfaces, one per persona: `#/` landing,
 `#/app` borrower console (portfolios found by owner — no ids to type), `#/p/:id` the
 portfolio, driven by one `phase` (`lib/phase.ts`) from offer → proof in transit → claim →
 active line, `#/valuer` the valuation desk, `#/ledger` every lock and line, and
