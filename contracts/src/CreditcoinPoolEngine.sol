@@ -206,7 +206,7 @@ contract CreditcoinPoolEngine {
     /**
      * @notice Prove an origin-chain lock via Attestcoin and open a credit line.
      * @param claim         Fields locating the lock; all are cross-checked against the proof.
-     * @param encodedTx     The origin-chain receipt RLP that Attestcoin proves.
+     * @param encodedTx     Attestcoin's ABI-encoded transaction envelope; its last chunk is the receipt.
      * @param merkleProof   Block-inclusion proof for the receipt.
      * @param continuityProof Chain-continuity proof for the source block.
      */
