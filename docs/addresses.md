@@ -47,7 +47,7 @@ claim" state cannot be created on stage — lock it beforehand.
 
 | Portfolio | Value | State | Lock tx |
 |---|---|---|---|
-| 3001 | $500,000 | locked and attested, **unclaimed — the live demo step** | `0x4796af22…377c6432` (block 11681749) |
+| 3001 | $500,000 | locked and attested, **unclaimed — the live demo step** (expires ~12:40 UTC 2026-09-12, frontier past block 11,688,949) | `0x4796af22…377c6432` (block 11681749) |
 | 2000 | $300,000 | **active line**, opened from the portal (Rabby): $240,000 limit, drew $100,000, repaid $25,000 ($0.0152 interest, then principal) | `0xabf9d584…0fd96d0b` (block 11675618) |
 | 2001 | $750,000 | locked and attested, unclaimed | `0xa551daeb…ad0e155b` (block 11675614) |
 
@@ -57,7 +57,8 @@ wait for attestation (`npm run bifrost -- status`).
 
 **Claim windows.** `maxLockAge` is 7200 source blocks past attestation. 2001 stops being
 claimable once the frontier passes block ~11,682,814 (around 15:30 UTC 2026-09-11); 3001
-at ~11,688,949 (around 12:00 UTC 2026-09-12). Lock fresh ids before any demo past then.
+once it passes 11,688,949 (around 12:40 UTC 2026-09-12, ±15 min, at the 12.3 s block time
+measured on 2026-09-11). Lock fresh ids before any demo past then.
 2000's line is already open, so its window no longer matters.
 
 ## Retired

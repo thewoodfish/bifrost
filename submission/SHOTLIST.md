@@ -173,7 +173,7 @@ contracts and the attested chains read live from ChainInfo.
 `tools/record.mjs` drives the portal headlessly (Playwright + CDP screencast, fake cursor,
 read-only wallet); `tools/encode.py` turns the frames into the MP4 and `timeline.json`;
 `tools/code.html` is the contract card for scene 11. The demo state changes over time —
-3001's claim window closes around 12:00 UTC 2026-09-12 — so re-lock and re-record if the
+3001's claim window closes around 12:40 UTC 2026-09-12 (frontier past block 11,688,949) — so re-lock and re-record if the
 video needs to be regenerated after that.
 
 ```bash

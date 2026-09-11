@@ -217,7 +217,9 @@ On the current deployment the whole borrower lifecycle has run **from the portal
 a real wallet: portfolio 2000's attested $300,000 lock opened a $240,000 line, drew
 $100,000, and repaid $25,000, which paid the accrued interest first (25% of it to
 protocol reserves, the rest to lenders) and the remainder as principal. Portfolio 3001
-($500,000) is locked, attested and deliberately left unclaimed as the live demo step.
+($500,000) is locked, attested and deliberately left unclaimed as the live demo step
+(claimable until the attestation frontier passes Sepolia block 11,688,949, about 12:40 UTC
+on 2026-09-12; after that the pool rejects it with `LockTooOld`).
 Current demo state and claim windows are in [`docs/addresses.md`](docs/addresses.md#demo-state).
 
 ## Run it
